@@ -1,0 +1,14 @@
+{
+  "name": "行程本 · Trip Book",
+  "short_name": "行程本",
+  "description": "自己嘅旅行行程 app — 上載或者填表就出到成個行程。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6EF",
+  "theme_color": "#0E4D64",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
