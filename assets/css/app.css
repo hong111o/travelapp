@@ -278,3 +278,56 @@ footer .heart{color:var(--amber)}
   background:var(--ink);color:#fff;font-size:.86rem;font-weight:500;border-radius:11px;
   padding:10px 18px;box-shadow:0 6px 24px rgba(0,0,0,.24);max-width:90vw;text-align:center}
 .toast.bad{background:var(--danger)}
+
+/* ============================================================
+   TODAY — now & next
+   Shown on the itinerary home only while the trip is running.
+   ============================================================ */
+.todaycard{margin-top:-44px;position:relative;z-index:2;
+  background:linear-gradient(150deg,#0b3d51,#1B7A8F);border:none;color:#fff;padding:15px 17px}
+/* The weather card carries the hero overlap when it is first; once the
+   today card sits above it, that job moves up and weather sits normally. */
+.todaycard + .wxcard{margin-top:14px}
+.tw-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.tw-badge{flex-shrink:0;font-family:'Fraunces',serif;font-weight:700;font-size:.78rem;
+  background:rgba(255,255,255,.16);border-radius:7px;padding:2px 8px}
+.tw-ttl{flex:1;min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw-live{flex-shrink:0;font-size:.68rem;font-weight:700;color:var(--amber-soft);letter-spacing:.04em}
+.twrow{display:grid;grid-template-columns:58px 1fr;gap:11px;padding:9px 0;
+  border-top:1px solid rgba(255,255,255,.14)}
+.twrow:first-of-type{border-top:none}
+.tw-l{font-size:.72rem;font-weight:700;color:var(--amber-soft);padding-top:3px}
+.tw-b{min-width:0}
+.tw-t{font-size:.76rem;color:#CFE4E4;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tw-in{color:var(--amber);font-weight:700}
+.tw-n{font-size:1rem;font-weight:700;line-height:1.45;margin-top:1px}
+.twrow .gmap{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.22);color:#fff}
+.twnote{font-size:.82rem;color:#CFE4E4;padding:8px 0 2px}
+.tw-go{width:100%;margin-top:11px;background:rgba(255,255,255,.14);
+  border-color:rgba(255,255,255,.26);color:#fff}
+.tw-go:active{background:rgba(255,255,255,.26)}
+
+/* stop states inside today's day view */
+.stop.is-past{opacity:.42}
+.stop.is-now{position:relative;background:#FFF8EC;margin:0 -12px;padding-left:12px;padding-right:12px;
+  border-radius:10px;box-shadow:inset 3px 0 0 var(--amber)}
+.stop.is-now .time{color:var(--star)}
+.stop.is-now h4::after{content:'　● 而家';font-size:.68rem;font-weight:700;color:var(--star);
+  white-space:nowrap;vertical-align:1px}
+.stop.is-next{box-shadow:inset 3px 0 0 var(--teal);margin:0 -12px;
+  padding-left:12px;padding-right:12px;border-radius:10px}
+.stop.is-next h4::after{content:'　下一站';font-size:.68rem;font-weight:700;color:var(--teal);
+  white-space:nowrap;vertical-align:1px}
+
+/* offline banner */
+.offbar{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;
+  font-size:.78rem;font-weight:500;text-align:center;padding:7px 14px}
+.offbar b{color:var(--amber-soft)}
+
+/* offline map download progress */
+.dlrow{display:flex;align-items:center;gap:10px;margin-top:10px}
+.dlbar{flex:1;height:7px;border-radius:99px;background:var(--sand-2);overflow:hidden}
+.dlbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--amber));
+  transition:width .25s ease}
+.dlpct{font-size:.74rem;color:var(--ink-soft);flex-shrink:0;min-width:64px;text-align:right}

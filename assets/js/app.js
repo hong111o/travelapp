@@ -11,7 +11,22 @@
   'use strict';
 
   var current = null;   // trip currently rendered in #view-trip
-  var suppressHash = false;
+  var todayTimer = null;
+
+  /* Keep "now & next" honest while the app sits open. Once a minute is
+     plenty — stop times have minute resolution. */
+  function startTodayTicker(trip) {
+    stopTodayTicker();
+    if (!U.todaysDay(trip)) return;
+    todayTimer = setInterval(function () {
+      if (!current || current.id !== trip.id) { stopTodayTicker(); return; }
+      Render.refreshToday(trip);
+    }, 60000);
+  }
+
+  function stopTodayTicker() {
+    if (todayTimer) { clearInterval(todayTimer); todayTimer = null; }
+  }
 
   /* --- view switching ------------------------------------------- */
 
@@ -100,6 +115,7 @@
       Widgets.loadWeather(trip.place);
       Widgets.loadFX(trip.currency);
       Widgets.startCountdown(trip.departure);
+      startTodayTicker(trip);
     } else {
       showView('trip');
     }
@@ -107,8 +123,21 @@
     var actual = showSub(subId || 'home');
     window.scrollTo(0, 0);
 
+    Render.applyDayProgress(trip);
+
     var day = trip.days.filter(function (d) { return d.id === actual; })[0];
-    if (day) Widgets.ensureMap(day);
+    if (day) {
+      Widgets.ensureMap(day);
+      /* Opening today's page should put you at the stop you are on, not at
+         breakfast. Only ever scrolls within today. */
+      if (U.todaysDay(trip) && U.todaysDay(trip).id === day.id) {
+        setTimeout(function () {
+          var mark = document.querySelector('.subview[data-sub="' + day.id + '"] .stop.is-now')
+            || document.querySelector('.subview[data-sub="' + day.id + '"] .stop.is-next');
+          if (mark) mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 80);
+      }
+    }
   }
 
   function showLibrary() { go('#/'); }
@@ -139,9 +168,45 @@
     }
 
     Widgets.stopAll();
+    stopTodayTicker();
     current = null;
     renderLibrary();
     showView('library');
+  }
+
+  /* --- offline maps ----------------------------------------------- */
+
+  function downloadMaps(btn) {
+    if (!current) return;
+    var bar = U.el('dl-bar'), pct = U.el('dl-pct');
+    var total = Offline.tileCount(current);
+    if (!total) { U.toast('呢個行程冇地圖座標', true); return; }
+
+    btn.disabled = true;
+    btn.textContent = '下載緊…';
+    if (pct) pct.textContent = '0 / ' + total;
+
+    Offline.downloadMaps(current, function (done, t) {
+      if (bar) bar.style.width = Math.round(done / t * 100) + '%';
+      if (pct) pct.textContent = done + ' / ' + t;
+    }).then(function (res) {
+      btn.disabled = false;
+      btn.textContent = '再下載一次';
+      if (bar) bar.style.width = '100%';
+      if (res.failed) {
+        if (pct) pct.textContent = res.total - res.failed + ' / ' + res.total;
+        U.toast('下載咗大部分，' + res.failed + ' 塊失敗（可以再撳一次）', true);
+      } else {
+        if (pct) pct.textContent = '完成 ✓';
+        U.toast('離線地圖下載好喇 ✓');
+      }
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = '下載呢個行程嘅地圖';
+      if (bar) bar.style.width = '0';
+      if (pct) pct.textContent = '';
+      U.toast(err.message || '下載失敗', true);
+    });
   }
 
   /* --- actions --------------------------------------------------- */
@@ -163,6 +228,9 @@
     else if (act === 'export') {
       var t = Store.get(id);
       if (t) Store.exportTrip(t);
+    }
+    else if (act === 'dlmaps') {
+      downloadMaps(btn);
     }
     else if (act === 'dup') {
       var copy = Store.duplicate(id);
@@ -210,6 +278,7 @@
 
   function init() {
     Store.seedIfFirstRun();
+    Offline.init();
 
     document.addEventListener('click', onClick);
     window.addEventListener('hashchange', route);

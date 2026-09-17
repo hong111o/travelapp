@@ -10,6 +10,8 @@
 
 | | |
 |---|---|
+| 📍 **今日 · 而家同下一站** | 行程進行中，首頁會話你而家應該喺邊、下一站幾時 |
+| ✈️ **真離線** | 冇網都開到 app、睇到行程；地圖可以預先下載 |
 | 🗂️ **行程書架** | 所有行程一覽，未出發 / 進行中 / 已完成自動標示 |
 | ✏️ **表格編輯** | 喺 app 入面直接填，唔使掂 code |
 | ⬆️ **匯入檔案** | 上載 `.json` 就即刻睇到成個行程 |
@@ -149,6 +151,72 @@ node tools/bundle-trips.js
 
 ---
 
+## 📍 今日 · 而家同下一站
+
+行程當日打開 app，首頁最上面會出一張深色卡：
+
+- **而家** — 你而家應該喺邊個點
+- **下一站** — 下一個點，仲有幾耐（`3 個鐘 20 分後`）
+- 撳「睇今日行程 ›」入去，當日嗰頁會**標住而家嗰站**、下一站，過咗嘅點會淡色，
+  而且自動捲到你而家嗰行
+
+時間係由每個點嘅「時間」欄拆出嚟（`09:55`、`~13:00`、`~9:15` 都認得）。
+冇時間嘅點（例如「硬 timing」「選項」）唔會當成「而家」，但照樣顯示。
+
+用**你部機嘅時間**計 —— 手機去到當地會自動轉時區，啱晒。
+
+---
+
+## ✈️ 離線
+
+`Leaflet` 同標題字體 `Fraunces` 已經放咗入 repo，唔再靠 CDN。
+加上 service worker，**冇網一樣開到 app、睇到成個行程**。
+
+| 冇網嘅時候 | 點 |
+|---|---|
+| App 本身 · 行程 · 每日安排 | ✅ 照用 |
+| 地圖 | ✅ **預先下載咗**先睇到（見下） |
+| 天氣 · 日落 · 匯率 | ❌ 顯示「需上網更新」 |
+
+離線嗰陣頂部會出一條黑色提示條。
+
+### 下載離線地圖
+
+行程頁面下面有張「📥 離線地圖」卡，**出發前喺 wifi 撳一次**就得。
+
+另外，你平時 online 睇過嘅地圖會自動 cache，所以就算冇撳個掣，
+出發前掃一次每日地圖都有同樣效果。
+
+> 🙏 每個行程最多下載 **250 塊 tile**，而且逐塊慢慢攞。
+> OpenStreetMap 嘅 tile 係免費俾人用，佢哋嘅使用政策當超過 250 塊叫 bulk download。
+> 呢個 app 特登唔越界。所以地圖係「夠你睇」，唔係成個城市離線。
+
+### ⚙️ 改完 app 之後記得 bump 版本
+
+Service worker 係 **cache-first** —— 開得快、離線得，代價係你改完 code
+push 上去，已經裝咗嘅 app 未必即刻攞到新版。
+
+改完之後，喺 `sw.js` 最頂改一改個版本號：
+
+```js
+const VERSION = 'v2';   // v1 -> v2
+```
+
+改咗呢個字，`sw.js` 本身就唔同咗，瀏覽器會重新安裝 service worker、
+掉咗舊 cache、再攞一次所有檔案。唔改嘅話，用家下次開會攞到新版，
+但今次開嗰次仲係舊版。
+
+> 淨係改 `data/trips/` 入面嘅行程？記得行 `node tools/bundle-trips.js`，
+> 之後一樣 bump version。
+
+### 字體嘅取捨
+
+`Fraunces`（英文標題字）細細個 ~77KB，四個 weight 全部放咗入 repo。
+`Noto Sans HK` 冇放 —— 中文字體每個 weight 都幾 MB。Online 就照用 Google Fonts，
+離線就跌返落系統中文字體（iOS PingFang HK / Android Noto），一樣靚。
+
+---
+
 ## ⚠️ 私隱：唔好 commit 個人行程
 
 **任何靜態 host 都係公開派檔案** —— GitHub Pages、Netlify、Cloudflare 全部一樣。
@@ -183,14 +251,18 @@ node tools/bundle-trips.js
 ```
 index.html                  app 外殼（三個 view：書架 / 行程 / 編輯）
 manifest.webmanifest        加入主畫面用
+sw.js                       service worker（離線 cache）
 assets/
   css/app.css               全部樣式（design tokens 由原本份 Málaga HTML 抽出嚟）
   icon.svg
+  fonts/                    Fraunces（vendored，離線用）
+  vendor/leaflet/           Leaflet 1.9.4（vendored，離線用）
   js/
     util.js                 escape、日期、object path、toast、下載
     schema.js               資料格式：blank / normalize / 驗證
     store.js                localStorage CRUD + 匯入匯出
     widgets.js              天氣、日落、匯率、倒數、Leaflet 地圖
+    offline.js              service worker 註冊、離線狀態、地圖 tile 預載
     render.js               行程 → HTML
     editor.js               表格編輯器（path 綁定 + 可增刪重排）
     app.js                  hash router + 書架
@@ -203,5 +275,9 @@ tools/
 
 冇 build step、冇 npm dependency、冇 framework。改完直接 refresh 就睇到。
 
-外部資源（都係免費、免 API key）：Leaflet + OpenStreetMap（地圖）、Open-Meteo（天氣日落）、
-Fawaz Ahmed currency-api 同 open.er-api.com（匯率）、Google Fonts。
+外部資源（都係免費、免 API key）：OpenStreetMap（地圖 tile）、Open-Meteo（天氣日落）、
+Fawaz Ahmed currency-api 同 open.er-api.com（匯率）、Google Fonts（淨係中文字體，離線有 fallback）。
+Leaflet 同 Fraunces 已經 vendored 入 repo。
+
+Leaflet 用 BSD-2-Clause，Fraunces 用 SIL OFL 1.1 —— licence 檔案喺
+`assets/vendor/leaflet/LICENSE` 同 `assets/fonts/FRAUNCES-LICENSE`。

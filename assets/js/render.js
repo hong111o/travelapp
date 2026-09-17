@@ -31,6 +31,109 @@
       '</header>';
   }
 
+  /* ---- today: now & next -------------------------------------
+     Only rendered while the trip is actually running. Turns the
+     itinerary from something you navigate into something that tells
+     you where you should be. */
+
+  function stopLine(label, entry, showUntil) {
+    if (!entry) return '';
+    var s = entry.stop;
+    var until = '';
+    if (showUntil) {
+      var gap = entry.mins - U.nowMinutes();
+      var txt = U.untilText(gap);
+      if (txt) until = '<span class="tw-in">' + esc(txt) + '後</span>';
+    }
+    var nav = s.mapQuery
+      ? '<a class="gmap" href="' + esc(U.mapsUrl(s.mapQuery)) + '" target="_blank" rel="noopener">🧭 導航</a>'
+      : '';
+    return '<div class="twrow">' +
+      '<div class="tw-l">' + esc(label) + '</div>' +
+      '<div class="tw-b">' +
+        '<div class="tw-t">' + esc(s.time) + until + '</div>' +
+        '<div class="tw-n">' + rich(s.title) + (s.star ? ' <span class="star">★</span>' : '') + '</div>' +
+        nav +
+      '</div></div>';
+  }
+
+  function todayInner(trip) {
+    var day = U.todaysDay(trip);
+    if (!day) return '';
+    var index = trip.days.indexOf(day);
+    var p = U.dayProgress(day);
+
+    var body;
+    if (!p.timed.length) {
+      body = '<div class="twnote">今日冇寫時間，撳入去睇成日安排。</div>';
+    } else if (!p.current && p.next) {
+      body = stopLine('第一站', p.next, true);
+    } else if (p.current && !p.next) {
+      body = stopLine('最後一站', p.current, false) +
+        '<div class="twnote">今日行程行完喇 🌙</div>';
+    } else {
+      body = stopLine('而家', p.current, false) + stopLine('下一站', p.next, true);
+    }
+
+    return '<div class="tw-head">' +
+        '<span class="tw-badge">Day ' + (index + 1) + '</span>' +
+        '<span class="tw-ttl">' + esc(day.title || ('Day ' + (index + 1))) + '</span>' +
+        '<span class="tw-live">● 今日</span>' +
+      '</div>' + body +
+      '<button class="btn btn-sm tw-go" data-act="day" data-day="' + esc(day.id) + '">睇今日行程 ›</button>';
+  }
+
+  function todayHTML(trip) {
+    var inner = todayInner(trip);
+    if (!inner) return '';
+    return '<div class="card todaycard" id="today-card">' + inner + '</div>';
+  }
+
+  /* Re-mark the stops in today's day view. Called on a timer so an app
+     left open overnight does not keep pointing at yesterday's lunch. */
+  function applyDayProgress(trip) {
+    /* Clear first, unconditionally: yesterday's marks must not survive
+       into a day that is no longer today. */
+    var all = document.querySelectorAll('#view-trip .stop');
+    for (var i = 0; i < all.length; i++) {
+      all[i].classList.remove('is-past', 'is-now', 'is-next');
+    }
+
+    var day = U.todaysDay(trip);
+    if (!day) return;
+    var container = document.querySelector(
+      '#view-trip .subview[data-sub="' + day.id + '"] .stops');
+    if (!container) return;
+
+    var p = U.dayProgress(day);
+    var nodes = container.querySelectorAll('.stop');
+    /* Stops that render to nothing are dropped from the DOM, so walk the
+       data and the nodes together by counting rendered stops. */
+    var rendered = [];
+    day.stops.forEach(function (s, i) {
+      if (s.title || s.desc || s.time) rendered.push(i);
+    });
+    rendered.forEach(function (dataIx, nodeIx) {
+      var node = nodes[nodeIx];
+      if (!node) return;
+      var mins = U.stopMinutes(day.stops[dataIx].time);
+      if (mins == null) return;
+      if (p.current && dataIx === p.current.i) node.classList.add('is-now');
+      else if (p.next && dataIx === p.next.i) node.classList.add('is-next');
+      else if (mins < U.nowMinutes()) node.classList.add('is-past');
+    });
+  }
+
+  function refreshToday(trip) {
+    var card = U.el('today-card');
+    if (card) {
+      var inner = todayInner(trip);
+      if (inner) card.innerHTML = inner;
+      else card.remove();
+    }
+    applyDayProgress(trip);
+  }
+
   function weatherHTML(trip) {
     if (trip.place.lat == null || trip.place.lng == null) return '';
     var label = trip.place.name ? esc(trip.place.name) + '天氣' : '天氣';
@@ -111,6 +214,22 @@
     return cards ? '<div class="daycards">' + cards + '</div>' : '';
   }
 
+  /* Offer the tile download only when the trip actually has maps to cache,
+     and only where a service worker can exist (not on file://). */
+  function offlineHTML(trip) {
+    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return '';
+    var hasPoints = trip.days.some(function (d) { return Widgets.pointsFor(d).length; });
+    if (!hasPoints) return '';
+    return '<div class="card" id="offline-card">' +
+      '<h2>📥 離線地圖</h2>' +
+      '<p class="tinynote" style="margin-top:0">出發前喺 wifi 撳一次，之後冇網都睇到每日地圖。' +
+      '行程本身一直都係離線可睇。</p>' +
+      '<div class="dlrow"><div class="dlbar"><i id="dl-bar"></i></div>' +
+      '<span class="dlpct" id="dl-pct"></span></div>' +
+      '<button class="btn addrow" style="border-style:solid" data-act="dlmaps">下載呢個行程嘅地圖</button>' +
+      '</div>';
+  }
+
   function linksHTML(trip) {
     var links = trip.links.filter(function (l) { return l.label && l.url; });
     if (!links.length) return '';
@@ -142,6 +261,7 @@
     return '<div class="subview" data-sub="home">' +
       heroHTML(trip) +
       '<div class="wrap">' +
+        todayHTML(trip) +
         weatherHTML(trip) +
         fxHTML(trip) +
         countdownHTML(trip) +
@@ -149,6 +269,7 @@
         dayCardsHTML(trip) +
         linksHTML(trip) +
         todosHTML(trip) +
+        offlineHTML(trip) +
         (trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
           rich(trip.notes) + '</p></div>' : '') +
         '<footer>' + esc(trip.title || '行程') + '　<span class="heart">✦</span></footer>' +
@@ -251,5 +372,5 @@
       foodHTML(t);
   }
 
-  global.Render = { trip: trip };
+  global.Render = { trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress };
 })(window);

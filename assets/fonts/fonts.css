@@ -1,0 +1,38 @@
+/* Fraunces (SIL OFL 1.1) — vendored so the display face survives offline.
+ * Latin subset only: Fraunces has no CJK coverage, and Chinese text is set
+ * in Noto Sans HK / the system face either way.
+ *
+ * Noto Sans HK is deliberately NOT vendored — the CJK weights run to several
+ * MB each, and every phone already ships a good Chinese face (PingFang HK on
+ * iOS, Noto on Android). It is still requested from Google Fonts when online
+ * as a progressive enhancement; offline, the system fallback takes over and
+ * looks fine.
+ */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fraunces-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fraunces-latin-400-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('fraunces-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('fraunces-latin-900-normal.woff2') format('woff2');
+}

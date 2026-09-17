@@ -94,6 +94,62 @@
       String(d.getDate()).padStart(2, '0');
   }
 
+  /* Pull a clock time out of a free-text stop time. Trip files write
+     things like "09:55", "~13:00", "~9:15" or "硬 timing" — the first two
+     shapes give a time, the last simply has none. Returns minutes past
+     midnight, or null. */
+  function stopMinutes(timeText) {
+    var m = /(\d{1,2})\s*[:：]\s*(\d{2})/.exec(String(timeText || ''));
+    if (!m) return null;
+    var h = +m[1], mi = +m[2];
+    if (h > 23 || mi > 59) return null;
+    return h * 60 + mi;
+  }
+
+  function nowMinutes() {
+    var d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  /* Where you are in a day: the stop you are at (last one whose time has
+     passed) and the one coming up. Stops without a time are skipped for
+     this calculation but still render normally.
+
+     Uses the device clock deliberately — a phone abroad picks up local
+     time, which is the time the itinerary is written in. */
+  function dayProgress(day, minutesOverride) {
+    var now = minutesOverride == null ? nowMinutes() : minutesOverride;
+    var timed = [];
+    (day.stops || []).forEach(function (s, i) {
+      var mins = stopMinutes(s.time);
+      if (mins != null) timed.push({ i: i, mins: mins, stop: s });
+    });
+    if (!timed.length) return { current: null, next: null, timed: timed };
+
+    var current = null, next = null;
+    for (var k = 0; k < timed.length; k++) {
+      if (timed[k].mins <= now) current = timed[k];
+      else { next = timed[k]; break; }
+    }
+    return { current: current, next: next, timed: timed };
+  }
+
+  /* The day of the trip that is happening today, or null. */
+  function todaysDay(trip) {
+    var t = todayISO();
+    var found = (trip.days || []).filter(function (d) { return d.date === t; });
+    return found.length ? found[0] : null;
+  }
+
+  /* "3 個鐘 20 分" / "45 分鐘" — gap until the next stop. */
+  function untilText(minutes) {
+    if (minutes == null || minutes < 0) return '';
+    if (minutes < 1) return '就快到';
+    if (minutes < 60) return minutes + ' 分鐘';
+    var h = Math.floor(minutes / 60), m = minutes % 60;
+    return h + ' 個鐘' + (m ? ' ' + m + ' 分' : '');
+  }
+
   /* upcoming | live | past — drives the badge on the library card. */
   function tripPhase(trip) {
     var t = todayISO();
@@ -164,6 +220,8 @@
     parseISODate: parseISODate, weekdayZH: weekdayZH, shortDate: shortDate,
     dateRangeZH: dateRangeZH, addDays: addDays, todayISO: todayISO, tripPhase: tripPhase,
     getPath: getPath, setPath: setPath, clone: clone, move: move,
+    stopMinutes: stopMinutes, nowMinutes: nowMinutes, dayProgress: dayProgress,
+    todaysDay: todaysDay, untilText: untilText,
     toast: toast, download: download
   };
 })(window);
