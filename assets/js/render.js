@@ -204,6 +204,8 @@
         '</div><div class="arrow">›</div></button>';
     }).join('');
 
+    cards += checkCardHTML(trip);
+
     var hasFood = trip.food.quick.length || trip.food.picks.length;
     if (hasFood) {
       cards += '<button class="dcard food" data-act="food">' +
@@ -278,12 +280,28 @@
 
   /* --- one day ------------------------------------------------- */
 
+  /* The trip currently being rendered, so stop/pick markup can ask whether
+     something has been ticked without threading the trip through every call. */
+  var activeTrip = null;
+
+  function isDone(uid) {
+    return !!(activeTrip && activeTrip.progress && activeTrip.progress[uid]);
+  }
+
+  function tickBtn(uid) {
+    if (!uid) return '';
+    var done = isDone(uid);
+    return '<button class="tick' + (done ? ' on' : '') + '" data-act="tick" data-uid="' + esc(uid) +
+      '" aria-pressed="' + (done ? 'true' : 'false') +
+      '" title="' + (done ? '已經去咗' : '標做去咗') + '"><span>✓</span></button>';
+  }
+
   function stopHTML(s) {
     if (!s.title && !s.desc && !s.time) return '';
     var nav = s.mapQuery
       ? '<a class="gmap" href="' + esc(U.mapsUrl(s.mapQuery)) + '" target="_blank" rel="noopener">🧭 導航</a>'
       : '';
-    return '<div class="stop">' +
+    return '<div class="stop' + (isDone(s.uid) ? ' done' : '') + '" data-uid="' + esc(s.uid) + '">' +
       '<div class="time">' + esc(s.time) + '</div>' +
       '<div>' +
         '<h4>' + rich(s.title) + (s.star ? ' <span class="star">★</span>' : '') + '</h4>' +
@@ -292,7 +310,7 @@
         (s.pin ? '<span class="pin">📍 ' + esc(s.pin) + '</span>' : '') +
         (s.backup ? '<span class="bk"><b>Backup：</b>' + rich(s.backup) + '</span>' : '') +
         (s.note ? '<span class="bk">' + rich(s.note) + '</span>' : '') +
-      '</div></div>';
+      '</div>' + tickBtn(s.uid) + '</div>';
   }
 
   function dayHTML(trip, day, index) {
@@ -323,6 +341,111 @@
       '</div></div>';
   }
 
+  /* --- checklist ------------------------------------------------
+     Everything worth ticking, across the whole trip, in one page: the
+     stops of every day plus the standalone restaurant list. */
+
+  /* A stop only counts if it is a real place — a bare "日落 🌅" marker or
+     a timing note is not somewhere you arrive at. */
+  function tickable(s) {
+    return !!(s.title && (s.mapQuery || s.lat != null || s.desc || s.star));
+  }
+
+  function checkItems(trip) {
+    var items = [];
+    trip.days.forEach(function (day, i) {
+      day.stops.filter(tickable).forEach(function (s) {
+        items.push({ uid: s.uid, title: s.title, time: s.time, star: s.star,
+                     mapQuery: s.mapQuery, group: 'Day ' + (i + 1), dayId: day.id,
+                     groupTitle: day.title || ('Day ' + (i + 1)) });
+      });
+    });
+    trip.food.picks.filter(function (p) { return p.title; }).forEach(function (p) {
+      items.push({ uid: p.uid, title: p.title, time: p.icon || '🍽️', star: false,
+                   mapQuery: p.mapQuery, group: '餐廳清單', dayId: null, groupTitle: '餐廳清單' });
+    });
+    return items;
+  }
+
+  function checkCounts(trip) {
+    var items = checkItems(trip);
+    var done = items.filter(function (it) { return isDone(it.uid); }).length;
+    return { done: done, total: items.length };
+  }
+
+  function checkRow(it) {
+    var done = isDone(it.uid);
+    return '<div class="ckrow' + (done ? ' done' : '') + '" data-uid="' + esc(it.uid) + '">' +
+      tickBtn(it.uid) +
+      '<div class="ckb">' +
+        '<div class="ckt">' + rich(it.title) + (it.star ? ' <span class="star">★</span>' : '') + '</div>' +
+        (it.time ? '<div class="ckm">' + esc(it.time) + '</div>' : '') +
+      '</div>' +
+      (it.mapQuery ? '<a class="gmap ckn" href="' + esc(U.mapsUrl(it.mapQuery)) +
+        '" target="_blank" rel="noopener">🧭</a>' : '') +
+      '</div>';
+  }
+
+  function checkBarHTML(trip) {
+    var c = checkCounts(trip);
+    var pct = c.total ? Math.round(c.done / c.total * 100) : 0;
+    return '<div class="ckhead" id="ck-head">' +
+      '<div class="cknum"><b>' + c.done + '</b> / ' + c.total + ' 去咗</div>' +
+      '<div class="ckbar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="ckpct">' + pct + '%</div>' +
+      '</div>';
+  }
+
+  function checklistHTML(trip) {
+    var items = checkItems(trip);
+    if (!items.length) return '';
+
+    var groups = [], byGroup = {};
+    items.forEach(function (it) {
+      if (!byGroup[it.group]) { byGroup[it.group] = []; groups.push(it.group); }
+      byGroup[it.group].push(it);
+    });
+
+    var body = groups.map(function (g) {
+      var first = byGroup[g][0];
+      return '<div class="ckgroup">' +
+        '<div class="ckgh">' + esc(g) +
+          (first.groupTitle && first.groupTitle !== g ? ' · ' + esc(first.groupTitle) : '') +
+        '</div>' +
+        byGroup[g].map(checkRow).join('') +
+      '</div>';
+    }).join('');
+
+    return '<div class="subview" data-sub="check"><div class="wrap">' +
+      '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
+        '<span class="sp"></span><span class="bt">打卡清單</span></div>' +
+      '<div class="day-top"><div class="dn">全程</div><h3>打卡清單</h3>' +
+        '<div class="theme">去過嘅撳一下，日程頁面同呢度一齊更新</div></div>' +
+      '<div class="card ckcard">' +
+        checkBarHTML(trip) +
+        '<div class="ckfilters">' +
+          '<button class="ckf on" data-filter="all">全部</button>' +
+          '<button class="ckf" data-filter="todo">未去</button>' +
+          '<button class="ckf" data-filter="done">去咗</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="ck-list">' + body + '</div>' +
+      '<div class="card" style="text-align:center">' +
+        '<button class="btn btn-sm btn-danger" data-act="ckreset">清空所有打卡記錄</button>' +
+      '</div>' +
+    '</div></div>';
+  }
+
+  /* Nav card on the itinerary home. */
+  function checkCardHTML(trip) {
+    var c = checkCounts(trip);
+    if (!c.total) return '';
+    return '<button class="dcard check" data-act="check">' +
+      '<div class="num"><b>' + c.done + '</b><small>/ ' + c.total + '</small></div>' +
+      '<div class="txt"><div class="d">全程</div><div class="t">打卡清單</div>' +
+      '<div class="s">去過嘅景點同餐廳一覽</div></div><div class="arrow">›</div></button>';
+  }
+
   /* --- food ---------------------------------------------------- */
 
   function foodHTML(trip) {
@@ -344,12 +467,13 @@
       ? '<div class="day-top" style="margin-top:20px"><div class="dn">想食咩就搵邊間</div>' +
         '<h3>餐廳清單</h3><div class="theme">撳 🧭 直接導航</div></div>' +
         '<div class="stops">' + picks.map(function (p) {
-          return '<div class="stop"><div class="time">' + esc(p.icon || '🍽️') + '</div><div>' +
+          return '<div class="stop' + (isDone(p.uid) ? ' done' : '') + '" data-uid="' + esc(p.uid) + '">' +
+            '<div class="time">' + esc(p.icon || '🍽️') + '</div><div>' +
             '<h4>' + rich(p.title) + '</h4>' +
             (p.mapQuery ? '<a class="gmap" href="' + esc(U.mapsUrl(p.mapQuery)) +
               '" target="_blank" rel="noopener">🧭 導航</a>' : '') +
             (p.desc ? '<p>' + rich(p.desc) + '</p>' : '') +
-          '</div></div>';
+          '</div>' + tickBtn(p.uid) + '</div>';
         }).join('') + '</div>'
       : '';
 
@@ -367,10 +491,27 @@
   /* --- entry point --------------------------------------------- */
 
   function trip(t, container) {
+    activeTrip = t;
     container.innerHTML = homeHTML(t) +
       t.days.map(function (d, i) { return dayHTML(t, d, i); }).join('') +
-      foodHTML(t);
+      foodHTML(t) +
+      checklistHTML(t);
   }
 
-  global.Render = { trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress };
+  /* Repaint just the counters after a tick, so the page does not rebuild. */
+  function refreshCounts(t) {
+    activeTrip = t;
+    var head = U.el('ck-head');
+    if (head) head.outerHTML = checkBarHTML(t);
+    var card = document.querySelector('#view-trip .dcard.check .num');
+    if (card) {
+      var c = checkCounts(t);
+      card.innerHTML = '<b>' + c.done + '</b><small>/ ' + c.total + '</small>';
+    }
+  }
+
+  global.Render = {
+    trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress,
+    refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
+  };
 })(window);

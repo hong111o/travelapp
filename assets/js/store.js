@@ -73,6 +73,54 @@
     return save(t);
   }
 
+  /* --- visited marks ------------------------------------------- */
+
+  /* Ticking a place writes straight into the trip's progress map and
+     deliberately does NOT touch updatedAt: the app re-renders a trip when
+     updatedAt changes, and rebuilding the page (and its maps) under you
+     every time you tick something would be awful. The plan did not change
+     — only the record of what you have done. */
+  function setDone(tripId, uid, done) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      var progress = (list[i].progress && typeof list[i].progress === 'object')
+        ? list[i].progress : {};
+      if (done) progress[uid] = new Date().toISOString();
+      else delete progress[uid];
+      list[i].progress = progress;
+      return writeRaw(list);
+    }
+    return false;
+  }
+
+  function clearProgress(tripId) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === tripId) {
+        list[i].progress = {};
+        return writeRaw(list);
+      }
+    }
+    return false;
+  }
+
+  /* Trips saved before stops had uids get them assigned by normalize, but
+     normalize runs on every read — so without persisting them once, every
+     read would mint fresh ids and a tick would never stick. Run at startup,
+     before anything renders. */
+  function migrateUids() {
+    var list = readRaw();
+    var needs = list.some(function (t) {
+      if (!t || !Array.isArray(t.days)) return false;
+      return t.days.some(function (d) {
+        return (d && Array.isArray(d.stops) ? d.stops : []).some(function (s) { return s && !s.uid; });
+      }) || ((t.food && Array.isArray(t.food.picks)) ? t.food.picks : []).some(function (p) { return p && !p.uid; });
+    });
+    if (!needs) return;
+    writeRaw(list.map(Schema.normalize));
+  }
+
   /* Seed bundled trips once, then leave them alone — after that they are
      ordinary trips the user can edit or delete without them coming back. */
   function seedIfFirstRun() {
@@ -130,6 +178,7 @@
   global.Store = {
     all: all, get: get, save: save, remove: remove, duplicate: duplicate,
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
+    setDone: setDone, clearProgress: clearProgress, migrateUids: migrateUids,
     exportTrip: exportTrip, importText: importText
   };
 })(window);

@@ -117,7 +117,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Praça do Comércio, Lisboa",
             "mapLabel": "商業廣場",
             "lat": 38.7075,
-            "lng": -9.1364
+            "lng": -9.1364,
+            "uid": "demo-d1-s1"
           },
           {
             "time": "~11:00",
@@ -130,7 +131,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Elevador de Santa Justa, Lisboa",
             "mapLabel": "Santa Justa",
             "lat": 38.7123,
-            "lng": -9.1393
+            "lng": -9.1393,
+            "uid": "demo-d1-s2"
           },
           {
             "time": "~13:00",
@@ -143,7 +145,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Time Out Market Lisboa",
             "mapLabel": "Time Out Market",
             "lat": 38.7071,
-            "lng": -9.1459
+            "lng": -9.1459,
+            "uid": "demo-d1-s3"
           },
           {
             "time": "~15:00",
@@ -156,7 +159,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Castelo de São Jorge, Lisboa",
             "mapLabel": "城堡",
             "lat": 38.7139,
-            "lng": -9.1335
+            "lng": -9.1335,
+            "uid": "demo-d1-s4"
           },
           {
             "time": "~18:30",
@@ -169,7 +173,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Miradouro da Senhora do Monte, Lisboa",
             "mapLabel": "Senhora do Monte",
             "lat": 38.7167,
-            "lng": -9.131
+            "lng": -9.131,
+            "uid": "demo-d1-s5"
           }
         ]
       },
@@ -192,7 +197,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Mosteiro dos Jerónimos, Lisboa",
             "mapLabel": "修道院",
             "lat": 38.6979,
-            "lng": -9.2065
+            "lng": -9.2065,
+            "uid": "demo-d2-s1"
           },
           {
             "time": "~11:30",
@@ -205,7 +211,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Pastéis de Belém, Lisboa",
             "mapLabel": "蛋撻",
             "lat": 38.6975,
-            "lng": -9.2032
+            "lng": -9.2032,
+            "uid": "demo-d2-s2"
           },
           {
             "time": "~13:00",
@@ -218,7 +225,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "Torre de Belém, Lisboa",
             "mapLabel": "貝倫塔",
             "lat": 38.6916,
-            "lng": -9.216
+            "lng": -9.216,
+            "uid": "demo-d2-s3"
           },
           {
             "time": "~16:00",
@@ -231,7 +239,8 @@ window.BUILTIN_TRIPS = [
             "mapQuery": "LX Factory, Lisboa",
             "mapLabel": "LX Factory",
             "lat": 38.7027,
-            "lng": -9.1786
+            "lng": -9.1786,
+            "uid": "demo-d2-s4"
           }
         ]
       }
@@ -268,23 +277,27 @@ window.BUILTIN_TRIPS = [
           "icon": "🥧",
           "title": "蛋撻 · **Manteigaria**",
           "desc": "市中心分店多，成日見到出爐。企喺吧枱食支咖啡配一個，最地道。",
-          "mapQuery": "Manteigaria Lisboa"
+          "mapQuery": "Manteigaria Lisboa",
+          "uid": "demo-pick-1"
         },
         {
           "icon": "🥪",
           "title": "豬扒包 · **Bifana**",
           "desc": "葡式豬扒包，蒜香醬汁。街邊小店最好食，通常 €3–4 一個。",
-          "mapQuery": "bifana Lisboa"
+          "mapQuery": "bifana Lisboa",
+          "uid": "demo-pick-2"
         },
         {
           "icon": "🐟",
           "title": "烤沙甸魚 · **sardinha assada**",
           "desc": "6 月聖安東尼節周街都係，其餘時間海鮮餐廳有。配薯仔同沙律。",
-          "mapQuery": "sardinha assada Lisboa"
+          "mapQuery": "sardinha assada Lisboa",
+          "uid": "demo-pick-3"
         }
       ],
       "legend": "🌅 **日落觀景台**：D1 Senhora do Monte（買支酒上去坐草地）"
     },
-    "notes": "呢個示範行程淨係用公開地標，冇任何酒店、訂位或者私人資料。用嚟睇格式就啱，想開始用就撳「＋ 新行程」，或者匯入你自己嘅 .json。"
+    "notes": "呢個示範行程淨係用公開地標，冇任何酒店、訂位或者私人資料。用嚟睇格式就啱，想開始用就撳「＋ 新行程」，或者匯入你自己嘅 .json。",
+    "progress": {}
   }
 ];

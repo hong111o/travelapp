@@ -13,9 +13,10 @@
  *     todos:    [ { level:'now'|'soon'|'day', text } ],
  *     links:    [ { icon, label, url } ],
  *     days:     [ { id, title, date, theme, drawRoute, mapNote,
- *                   stops:[{ time, title, star, desc, note, backup, pin,
+ *                   stops:[{ uid, time, title, star, desc, note, backup, pin,
  *                            mapQuery, mapLabel, lat, lng }] } ],
- *     food:     { quick:[{when,name,star,note}], picks:[{icon,title,desc,mapQuery}], legend },
+ *     food:     { quick:[{when,name,star,note}], picks:[{uid,icon,title,desc,mapQuery}], legend },
+ *     progress: { "<uid>": "<ISO timestamp>" },   // visited marks
  *     notes
  *   }
  *
@@ -36,7 +37,7 @@
   function arr(v) { return Array.isArray(v) ? v : []; }
 
   function blankStop() {
-    return { time: '', title: '', star: false, desc: '', note: '', backup: '', pin: '', mapQuery: '', mapLabel: '', lat: null, lng: null };
+    return { uid: U.uid('s'), time: '', title: '', star: false, desc: '', note: '', backup: '', pin: '', mapQuery: '', mapLabel: '', lat: null, lng: null };
   }
 
   function blankDay(index, startDate) {
@@ -69,6 +70,7 @@
       links: [],
       days: [blankDay(0, today)],
       food: { quick: [], picks: [], legend: '' },
+      progress: {},
       notes: '',
       updatedAt: new Date().toISOString()
     };
@@ -133,6 +135,7 @@
           stops: arr(d.stops).map(function (s) {
             s = s || {};
             return {
+              uid: str(s.uid) || U.uid('s'),
               time: str(s.time),
               title: str(s.title),
               star: !!s.star,
@@ -153,10 +156,15 @@
           return { when: str(q && q.when), name: str(q && q.name), star: !!(q && q.star), note: str(q && q.note) };
         }),
         picks: arr(t.food && t.food.picks).map(function (p) {
-          return { icon: str(p && p.icon), title: str(p && p.title), desc: str(p && p.desc), mapQuery: str(p && p.mapQuery) };
+          return {
+            uid: str(p && p.uid) || U.uid('p'),
+            icon: str(p && p.icon), title: str(p && p.title),
+            desc: str(p && p.desc), mapQuery: str(p && p.mapQuery)
+          };
         }),
         legend: str(t.food && t.food.legend)
       },
+      progress: {},
       notes: str(t.notes),
       updatedAt: str(t.updatedAt) || new Date().toISOString()
     };
@@ -166,6 +174,26 @@
     out.days.forEach(function (d, i) {
       if (!d.id || seen[d.id]) d.id = 'd' + (i + 1) + '-' + i;
       seen[d.id] = true;
+    });
+
+    /* Stop and pick uids must be unique too: they key the visited record,
+       so a duplicate would tick two places at once. Duplicates can only
+       come from a hand-edited or duplicated file. */
+    var uids = {};
+    function claim(item, prefix) {
+      if (!item.uid || uids[item.uid]) item.uid = U.uid(prefix);
+      uids[item.uid] = true;
+    }
+    out.days.forEach(function (d) {
+      d.stops.forEach(function (s) { claim(s, 's'); });
+    });
+    out.food.picks.forEach(function (p) { claim(p, 'p'); });
+
+    /* Carry over only the ticks that still point at something. Editing a
+       trip can delete stops; their marks would otherwise pile up forever. */
+    var incoming = (t.progress && typeof t.progress === 'object') ? t.progress : {};
+    Object.keys(incoming).forEach(function (uid) {
+      if (uids[uid]) out.progress[uid] = str(incoming[uid]);
     });
 
     if (!out.startDate && out.days.length) out.startDate = out.days[0].date;

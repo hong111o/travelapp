@@ -118,12 +118,14 @@
       startTodayTicker(trip);
     } else {
       showView('trip');
+      Render.setActiveTrip(trip);
     }
 
     var actual = showSub(subId || 'home');
     window.scrollTo(0, 0);
 
     Render.applyDayProgress(trip);
+    if (actual === 'check') applyFilter();
 
     var day = trip.days.filter(function (d) { return d.id === actual; })[0];
     if (day) {
@@ -174,6 +176,85 @@
     showView('library');
   }
 
+  /* --- visited marks ----------------------------------------------- */
+
+  /* Toggle in place. Re-rendering the trip would rebuild every map and
+     throw away your scroll position, so only the affected nodes and the
+     counters are touched. */
+  function toggleTick(uid) {
+    if (!current || !uid) return;
+    var now = !current.progress[uid];
+
+    if (!Store.setDone(current.id, uid, now)) {
+      U.toast('儲存唔到打卡記錄', true);
+      return;
+    }
+    if (now) current.progress[uid] = new Date().toISOString();
+    else delete current.progress[uid];
+
+    /* The same place appears in the day view and in the checklist. */
+    var nodes = document.querySelectorAll('#view-trip [data-uid="' + uid.replace(/"/g, '\\"') + '"]');
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].classList.toggle('done', now);
+      var btn = nodes[i].querySelector('.tick');
+      if (btn) {
+        btn.classList.toggle('on', now);
+        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+        btn.title = now ? '已經去咗' : '標做去咗';
+      }
+    }
+
+    Render.refreshCounts(current);
+    applyFilter();
+  }
+
+  /* Checklist filter: 全部 / 未去 / 去咗 */
+  var ckFilter = 'all';
+
+  function applyFilter() {
+    var list = U.el('ck-list');
+    if (!list) return;
+    var groups = list.querySelectorAll('.ckgroup');
+    for (var g = 0; g < groups.length; g++) {
+      var rows = groups[g].querySelectorAll('.ckrow');
+      var visible = 0;
+      for (var i = 0; i < rows.length; i++) {
+        var done = rows[i].classList.contains('done');
+        var show = ckFilter === 'all' || (ckFilter === 'done' ? done : !done);
+        rows[i].hidden = !show;
+        if (show) visible++;
+      }
+      /* A day heading with nothing left under it is noise. */
+      groups[g].hidden = visible === 0;
+    }
+  }
+
+  function setFilter(name, btn) {
+    ckFilter = name;
+    var all = document.querySelectorAll('#view-trip .ckf');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === btn);
+    applyFilter();
+  }
+
+  function resetProgress() {
+    if (!current) return;
+    var c = Object.keys(current.progress).length;
+    if (!c) { U.toast('本來就冇打卡記錄'); return; }
+    if (!confirm('清空 ' + c + ' 個打卡記錄？\n\n行程本身唔會改，只係當你全部未去過。')) return;
+    if (!Store.clearProgress(current.id)) { U.toast('清唔到', true); return; }
+    current.progress = {};
+    var marked = document.querySelectorAll('#view-trip .done');
+    for (var i = 0; i < marked.length; i++) marked[i].classList.remove('done');
+    var ticks = document.querySelectorAll('#view-trip .tick.on');
+    for (var j = 0; j < ticks.length; j++) {
+      ticks[j].classList.remove('on');
+      ticks[j].setAttribute('aria-pressed', 'false');
+    }
+    Render.refreshCounts(current);
+    applyFilter();
+    U.toast('清空咗');
+  }
+
   /* --- offline maps ----------------------------------------------- */
 
   function downloadMaps(btn) {
@@ -212,6 +293,13 @@
   /* --- actions --------------------------------------------------- */
 
   function onClick(e) {
+    var filterBtn = e.target.closest ? e.target.closest('.ckf[data-filter]') : null;
+    if (filterBtn) {
+      e.preventDefault();
+      setFilter(filterBtn.getAttribute('data-filter'), filterBtn);
+      return;
+    }
+
     var btn = e.target.closest ? e.target.closest('[data-act]') : null;
     if (!btn) return;
     if (U.el('view-editor').contains(btn)) return;  /* editor owns its own clicks */
@@ -225,6 +313,9 @@
     else if (act === 'home') { go('#/trip/' + encodeURIComponent(current.id)); }
     else if (act === 'day') { go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(btn.getAttribute('data-day'))); }
     else if (act === 'food') { go('#/trip/' + encodeURIComponent(current.id) + '/food'); }
+    else if (act === 'check') { go('#/trip/' + encodeURIComponent(current.id) + '/check'); }
+    else if (act === 'tick') { e.preventDefault(); toggleTick(btn.getAttribute('data-uid')); }
+    else if (act === 'ckreset') { e.preventDefault(); resetProgress(); }
     else if (act === 'export') {
       var t = Store.get(id);
       if (t) Store.exportTrip(t);
@@ -278,6 +369,7 @@
 
   function init() {
     Store.seedIfFirstRun();
+    Store.migrateUids();
     Offline.init();
 
     document.addEventListener('click', onClick);

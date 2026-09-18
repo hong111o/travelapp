@@ -331,3 +331,52 @@ footer .heart{color:var(--amber)}
 .dlbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--amber));
   transition:width .25s ease}
 .dlpct{font-size:.74rem;color:var(--ink-soft);flex-shrink:0;min-width:64px;text-align:right}
+
+/* ============================================================
+   VISITED MARKS — tick off places as you go
+   ============================================================ */
+.stop{grid-template-columns:60px 1fr auto}
+.tick{flex-shrink:0;align-self:start;margin-top:1px;cursor:pointer;
+  width:30px;height:30px;border-radius:50%;padding:0;
+  border:1.5px solid var(--line);background:var(--white);
+  display:flex;align-items:center;justify-content:center;
+  font-family:inherit;transition:background .14s ease,border-color .14s ease}
+.tick span{font-size:.9rem;font-weight:700;color:var(--line);line-height:1;transition:color .14s ease}
+.tick:active{transform:scale(.9)}
+.tick.on{background:var(--teal);border-color:var(--teal)}
+.tick.on span{color:#fff}
+
+.stop.done .time,.stop.done h4,.stop.done p{opacity:.5}
+.stop.done h4{text-decoration:line-through;text-decoration-color:var(--line)}
+
+/* checklist view */
+.ckcard{position:sticky;top:52px;z-index:20}
+.ckhead{display:flex;align-items:center;gap:11px}
+.cknum{font-size:.86rem;color:var(--ink-soft);flex-shrink:0}
+.cknum b{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--sea)}
+.ckbar{flex:1;height:8px;border-radius:99px;background:var(--sand-2);overflow:hidden}
+.ckbar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--amber));
+  transition:width .3s ease}
+.ckpct{font-size:.78rem;font-weight:700;color:var(--teal);flex-shrink:0;min-width:36px;text-align:right}
+.ckfilters{display:flex;gap:7px;margin-top:12px}
+.ckf{flex:1;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-soft);
+  background:var(--sand);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.ckf.on{background:var(--sea);border-color:var(--sea);color:#fff}
+
+.ckgroup{background:var(--white);border:1px solid var(--line);border-radius:16px;
+  padding:4px 16px 10px;margin-top:12px}
+.ckgh{font-family:'Fraunces',serif;font-weight:600;font-size:.98rem;color:var(--sea);
+  padding:12px 0 4px}
+.ckrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--sand-2)}
+.ckrow:first-of-type{border-top:none}
+/* An explicit display value beats the UA's [hidden]{display:none}, so the
+   filter would set hidden and nothing would happen. Restore it. */
+.ckrow[hidden],.ckgroup[hidden]{display:none}
+.ckb{flex:1;min-width:0}
+.ckt{font-size:.93rem;font-weight:700;color:var(--ink);line-height:1.45}
+.ckm{font-size:.76rem;color:var(--ink-soft);margin-top:1px}
+.ckrow.done .ckt{opacity:.5;text-decoration:line-through;text-decoration-color:var(--line)}
+.ckrow.done .ckm{opacity:.5}
+.ckn{margin:0;flex-shrink:0;padding:5px 10px}
+.dcard.check .num{background:linear-gradient(150deg,var(--teal),#2f9bab)}
+.dcard.check .num small{font-size:.58rem}
