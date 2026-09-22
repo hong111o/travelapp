@@ -110,6 +110,7 @@
       Widgets.stopAll();
       Widgets.resetMaps();
       current = trip;
+      searchRows = null;   /* index is per-trip and per-edit */
       Render.trip(trip, U.el('view-trip'));
       showView('trip');
       Widgets.loadWeather(trip.place);
@@ -126,6 +127,15 @@
 
     Render.applyDayProgress(trip);
     if (actual === 'check') applyFilter();
+    if (actual === 'search') {
+      var q = U.el('sch-q');
+      if (q && !q.dataset.bound) {
+        q.dataset.bound = '1';
+        q.addEventListener('input', runSearch);
+      }
+      if (q) setTimeout(function () { q.focus(); }, 60);
+      runSearch();
+    }
     paintPhotos();
 
     var day = trip.days.filter(function (d) { return d.id === actual; })[0];
@@ -257,6 +267,51 @@
     U.toast('清空咗');
   }
 
+  /* --- search --------------------------------------------------------- */
+
+  var searchRows = null;
+
+  function runSearch() {
+    var input = U.el('sch-q'), out = U.el('sch-results'), hint = U.el('sch-hint');
+    if (!input || !out || !current) return;
+
+    var q = input.value.trim().toLowerCase();
+    if (!q) {
+      out.innerHTML = '';
+      if (hint) hint.textContent = '打幾個字就會即刻搵。';
+      return;
+    }
+
+    if (!searchRows) searchRows = Render.searchIndex(current);
+    /* Every word must appear somewhere in the entry, in any order, so
+       "market lunch" finds a lunch stop at a market. */
+    var words = q.split(/\s+/).filter(Boolean);
+    var hits = searchRows.filter(function (row) {
+      return words.every(function (w) { return row.hay.indexOf(w) !== -1; });
+    });
+
+    if (hint) {
+      hint.textContent = hits.length
+        ? '搵到 ' + hits.length + ' 個'
+        : '搵唔到「' + input.value.trim() + '」';
+    }
+    out.innerHTML = hits.map(Render.searchResultHTML).join('');
+  }
+
+  /* Jump from a result to the place itself and flash it, so you can see
+     which row you landed on. */
+  function gotoPlace(sub, uid) {
+    if (!current) return;
+    go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(sub));
+    setTimeout(function () {
+      var node = document.querySelector('#view-trip .subview[data-sub="' + sub + '"] [data-uid="' + uid + '"]');
+      if (!node) return;
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      node.classList.add('flash');
+      setTimeout(function () { node.classList.remove('flash'); }, 1600);
+    }, 220);
+  }
+
   /* --- journal: notes + photos --------------------------------------- */
 
   function editNote(uid) {
@@ -272,6 +327,7 @@
     if (clean) current.journal[uid] = { note: clean, at: new Date().toISOString() };
     else delete current.journal[uid];
     Render.refreshJournal(current, uid);
+    searchRows = null;
     paintPhotos(uid);
     U.toast(clean ? '記低咗' : '刪咗筆記');
   }
@@ -446,6 +502,11 @@
     else if (act === 'day') { go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(btn.getAttribute('data-day'))); }
     else if (act === 'food') { go('#/trip/' + encodeURIComponent(current.id) + '/food'); }
     else if (act === 'check') { go('#/trip/' + encodeURIComponent(current.id) + '/check'); }
+    else if (act === 'search') { go('#/trip/' + encodeURIComponent(current.id) + '/search'); }
+    else if (act === 'goto') {
+      e.preventDefault();
+      gotoPlace(btn.getAttribute('data-sub'), btn.getAttribute('data-uid'));
+    }
     else if (act === 'tick') { e.preventDefault(); toggleTick(btn.getAttribute('data-uid')); }
     else if (act === 'ckreset') { e.preventDefault(); resetProgress(); }
     else if (act === 'note') { e.preventDefault(); editNote(btn.getAttribute('data-uid')); }
@@ -510,6 +571,7 @@
   function init() {
     Store.seedIfFirstRun();
     Store.migrateUids();
+    DragSort.init();
     Offline.init();
 
     document.addEventListener('click', onClick);

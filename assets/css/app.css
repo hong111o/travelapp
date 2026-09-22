@@ -412,3 +412,42 @@ footer .heart{color:var(--amber)}
 .lb-b.del{color:#ffb4a8;border-color:rgba(255,180,168,.4)}
 .lb-img{flex:1;display:flex;align-items:center;justify-content:center;padding:0 12px 18px;min-height:0}
 .lb-img img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px}
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+.schcard{position:sticky;top:52px;z-index:20}
+.schin{width:100%;font-family:inherit;font-size:1rem;color:var(--ink);
+  border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--sand);
+  -webkit-appearance:none}
+.schin:focus{outline:none;border-color:var(--teal);background:#fff}
+.schres{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
+  background:var(--white);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  margin-top:9px;font-family:inherit;color:inherit}
+.schres:active{background:var(--sand-2)}
+.schb{flex:1;min-width:0}
+.schw{font-size:.72rem;font-weight:700;color:var(--teal)}
+.scht{font-size:.95rem;font-weight:700;color:var(--ink);line-height:1.45;margin-top:1px}
+.schdone{font-size:.7rem;font-weight:700;color:var(--teal)}
+.schn{font-size:.76rem;color:var(--ink-soft);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dcard.search .num{background:linear-gradient(150deg,#6b5ca5,#8b7ac0)}
+.dcard.search .num b{font-size:1.1rem}
+
+/* landing flash after jumping to a result */
+@keyframes flashbg{0%{background:#FFF3D6}100%{background:transparent}}
+.flash{animation:flashbg 1.6s ease-out}
+
+/* ============================================================
+   DRAG TO REORDER (editor)
+   The arrow buttons stay — precise, keyboard-reachable, and easier
+   than dragging a long list on a phone.
+   ============================================================ */
+.draghandle{flex-shrink:0;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
+  color:var(--line);font-size:1.05rem;line-height:1;padding:2px 4px;letter-spacing:-2px}
+.draghandle:active{cursor:grabbing;color:var(--teal)}
+[data-dragrow]{touch-action:pan-y}
+[data-dragrow].dragging{position:relative;z-index:12;opacity:.96;
+  box-shadow:0 8px 22px rgba(14,77,100,.22);border-color:var(--teal)}
+body.dragging-now{user-select:none;-webkit-user-select:none;cursor:grabbing}
+body.dragging-now .rep{transition:transform .14s ease}

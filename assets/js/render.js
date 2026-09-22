@@ -206,6 +206,17 @@
 
     cards += checkCardHTML(trip);
 
+    /* A search box over three stops is just a slower way to scroll, so it
+       only appears once a trip is big enough to lose things in. */
+    var searchable = searchIndex(trip).length;
+    if (searchable > 5) {
+      cards += '<button class="dcard search" data-act="search">' +
+        '<div class="num"><b>🔍</b></div>' +
+        '<div class="txt"><div class="d">全程</div><div class="t">搵嘢</div>' +
+        '<div class="s">' + searchable + ' 個景點 · 餐廳 · 筆記</div></div>' +
+        '<div class="arrow">›</div></button>';
+    }
+
     var hasFood = trip.food.quick.length || trip.food.picks.length;
     if (hasFood) {
       cards += '<button class="dcard food" data-act="food">' +
@@ -472,6 +483,62 @@
       '<div class="s">去過嘅景點同餐廳一覽</div></div><div class="arrow">›</div></button>';
   }
 
+  /* --- search ---------------------------------------------------
+     One box over everything in the trip: stop titles and descriptions,
+     backups, pins, restaurant blurbs and your own notes. Results are
+     built live in App.runSearch; this only lays out the page. */
+
+  function searchHTML(trip) {
+    if (searchIndex(trip).length <= 5) return '';
+    return '<div class="subview" data-sub="search"><div class="wrap">' +
+      '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
+        '<span class="sp"></span><span class="bt">搵嘢</span></div>' +
+      '<div class="card schcard">' +
+        '<input id="sch-q" class="schin" type="search" autocomplete="off" ' +
+          'placeholder="搵景點、餐廳、筆記…" aria-label="搵嘢">' +
+        '<p class="tinynote" id="sch-hint">打幾個字就會即刻搵。</p>' +
+      '</div>' +
+      '<div id="sch-results"></div>' +
+    '</div></div>';
+  }
+
+  /* Everything searchable, flattened once per trip. */
+  function searchIndex(trip) {
+    var rows = [];
+    trip.days.forEach(function (day, i) {
+      day.stops.forEach(function (st) {
+        if (!st.title && !st.desc) return;
+        rows.push({
+          uid: st.uid, dayId: day.id, sub: day.id,
+          where: 'Day ' + (i + 1) + (day.title ? ' · ' + day.title : ''),
+          time: st.time, title: st.title, star: st.star,
+          hay: [st.title, st.desc, st.backup, st.pin, st.mapQuery, st.mapLabel,
+                noteOf(st.uid)].join(' ').toLowerCase()
+        });
+      });
+    });
+    trip.food.picks.forEach(function (pk) {
+      if (!pk.title) return;
+      rows.push({
+        uid: pk.uid, dayId: null, sub: 'food',
+        where: '餐廳清單', time: pk.icon || '🍽️', title: pk.title, star: false,
+        hay: [pk.title, pk.desc, pk.mapQuery, noteOf(pk.uid)].join(' ').toLowerCase()
+      });
+    });
+    return rows;
+  }
+
+  function searchResultHTML(row) {
+    return '<button class="schres" data-act="goto" data-sub="' + esc(row.sub) +
+      '" data-uid="' + esc(row.uid) + '">' +
+      '<div class="schb">' +
+        '<div class="schw">' + esc(row.where) + (row.time ? ' · ' + esc(row.time) : '') + '</div>' +
+        '<div class="scht">' + rich(row.title) + (row.star ? ' <span class="star">★</span>' : '') +
+          (isDone(row.uid) ? ' <span class="schdone">✓ 去咗</span>' : '') + '</div>' +
+        (noteOf(row.uid) ? '<div class="schn">✏️ ' + esc(noteOf(row.uid)) + '</div>' : '') +
+      '</div><div class="arrow">›</div></button>';
+  }
+
   /* --- food ---------------------------------------------------- */
 
   function foodHTML(trip) {
@@ -522,7 +589,8 @@
     container.innerHTML = homeHTML(t) +
       t.days.map(function (d, i) { return dayHTML(t, d, i); }).join('') +
       foodHTML(t) +
-      checklistHTML(t);
+      checklistHTML(t) +
+      searchHTML(t);
   }
 
   /* Repaint just the counters after a tick, so the page does not rebuild. */
@@ -555,6 +623,7 @@
   global.Render = {
     trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress,
     refreshJournal: refreshJournal, journalHTML: journalHTML,
+    searchIndex: searchIndex, searchResultHTML: searchResultHTML,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
   };
 })(window);

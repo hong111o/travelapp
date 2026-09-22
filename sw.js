@@ -14,7 +14,7 @@
  * Live data (weather, FX) is never cached — a stale exchange rate is worse
  * than an honest "需上網更新".
  */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL = 'tripbook-shell-' + VERSION;
 const TILES = 'tripbook-tiles-' + VERSION;
 
@@ -37,6 +37,7 @@ const SHELL_FILES = [
   './assets/js/widgets.js',
   './assets/js/offline.js',
   './assets/js/photos.js',
+  './assets/js/dragsort.js',
   './assets/js/render.js',
   './assets/js/editor.js',
   './assets/js/app.js',

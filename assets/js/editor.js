@@ -68,8 +68,9 @@
 
   function repHead(listPath, i, name) {
     return '<div class="rep-head">' +
+      '<span class="draghandle" data-drag title="拖住換位">⠿</span>' +
       '<span class="ix">' + (i + 1) + '</span>' +
-      '<span class="nm">' + esc(name || '（未填）') + '</span>' +
+      '<span class="nm">' + esc(U.plain(name) || '（未填）') + '</span>' +
       '<button class="iconbtn" data-op="up" data-list="' + esc(listPath) + '" data-i="' + i + '" title="上移">↑</button>' +
       '<button class="iconbtn" data-op="down" data-list="' + esc(listPath) + '" data-i="' + i + '" title="下移">↓</button>' +
       '<button class="iconbtn del" data-op="del" data-list="' + esc(listPath) + '" data-i="' + i + '" title="刪除">✕</button>' +
@@ -129,7 +130,7 @@
 
   function stopBlock(dayIx, stopIx, s) {
     var p = 'days.' + dayIx + '.stops.' + stopIx;
-    return '<div class="rep">' +
+    return '<div class="rep" data-dragrow>' +
       repHead('days.' + dayIx + '.stops', stopIx, s.title) +
       '<div class="frow">' +
         input('時間', p + '.time', { placeholder: '~13:00' }) +
@@ -154,7 +155,7 @@
   function dayBlock(d, i) {
     var open = state.openDays[i] ? ' open' : '';
     var wd = U.weekdayZH(d.date), short = U.shortDate(d.date);
-    var label = (d.title || 'Day ' + (i + 1)) + (short ? '　' + (wd ? '星期' + wd + ' ' : '') + short : '');
+    var label = U.plain(d.title || 'Day ' + (i + 1)) + (short ? '　' + (wd ? '星期' + wd + ' ' : '') + short : '');
     return '<details class="daybox"' + open + ' data-dayix="' + i + '">' +
       '<summary><span class="ix">' + (i + 1) + '</span>' +
         '<span class="nm">' + esc(label) + '</span>' +
@@ -175,7 +176,9 @@
         input('地圖說明', 'days.' + i + '.mapNote', { optional: true }) +
         '<h3 style="margin-top:16px;font-size:.98rem">行程點</h3>' +
         (d.stops.length
-          ? d.stops.map(function (s, j) { return stopBlock(i, j, s); }).join('')
+          ? '<div data-draglist="days.' + i + '.stops">' +
+              d.stops.map(function (s, j) { return stopBlock(i, j, s); }).join('') +
+            '</div>'
           : '<div class="emptyrep">仲未有行程點</div>') +
         addBtn('days.' + i + '.stops', 'stop', '加一個點') +
       '</div></details>';
@@ -202,15 +205,15 @@
         '</div>' +
         input('導航搜尋字', 'infoCards.' + i + '.mapQuery', { optional: true }) +
         '<h3 style="margin-top:12px;font-size:.92rem;color:var(--teal)">內容行</h3>' +
-        (c.rows.length ? c.rows.map(function (r, j) {
+        (c.rows.length ? '<div data-draglist="infoCards.' + i + '.rows">' + c.rows.map(function (r, j) {
           var p = 'infoCards.' + i + '.rows.' + j;
-          return '<div class="rep" style="background:var(--white)">' +
+          return '<div class="rep" data-dragrow style="background:var(--white)">' +
             repHead('infoCards.' + i + '.rows', j, r.k) +
             input('左邊（標籤）', p + '.k', { placeholder: '機場入城' }) +
             input('右邊（內容）', p + '.v', { placeholder: '地鐵紅線 ~20 分鐘' }) +
             input('右邊細字', p + '.sub', { optional: true }) +
           '</div>';
-        }).join('') : '<div class="emptyrep">仲未有內容行</div>') +
+        }).join('') + '</div>' : '<div class="emptyrep">仲未有內容行</div>') +
         addBtn('infoCards.' + i + '.rows', 'row', '加一行') +
       '</div>';
     }).join('');
@@ -225,7 +228,7 @@
 
   function paneExtras() {
     var todos = state.work.todos.map(function (d, i) {
-      return '<div class="rep">' +
+      return '<div class="rep" data-dragrow>' +
         repHead('todos', i, d.text) +
         select('幾時要做', 'todos.' + i + '.level',
           [['now', '而家（紅）'], ['soon', '出發前（橙）'], ['day', '當日（綠）']]) +
@@ -234,7 +237,7 @@
     }).join('');
 
     var links = state.work.links.map(function (l, i) {
-      return '<div class="rep">' +
+      return '<div class="rep" data-dragrow>' +
         repHead('links', i, l.label) +
         '<div class="frow">' +
           input('圖示', 'links.' + i + '.icon', { placeholder: '🌤️' }) +
@@ -247,11 +250,11 @@
     return '<div class="ed-pane" data-pane="extras">' +
       '<div class="fieldset"><h3>要訂嘅嘢</h3>' +
         '<p class="hint">首頁底部嗰張黃色 checklist。</p>' +
-        (todos || '<div class="emptyrep">仲未有項目</div>') +
+        (todos ? '<div data-draglist="todos">' + todos + '</div>' : '<div class="emptyrep">仲未有項目</div>') +
         addBtn('todos', 'todo', '加一項') +
       '</div>' +
       '<div class="fieldset"><h3>實用連結</h3>' +
-        (links || '<div class="emptyrep">仲未有連結</div>') +
+        (links ? '<div data-draglist="links">' + links + '</div>' : '<div class="emptyrep">仲未有連結</div>') +
         addBtn('links', 'link', '加一個連結') +
       '</div></div>';
   }
@@ -259,7 +262,7 @@
   function paneFood() {
     var quick = state.work.food.quick.map(function (q, i) {
       var p = 'food.quick.' + i;
-      return '<div class="rep">' +
+      return '<div class="rep" data-dragrow>' +
         repHead('food.quick', i, q.name) +
         '<div class="frow">' +
           input('幾時', p + '.when', { placeholder: 'D1 午餐' }) +
@@ -272,7 +275,7 @@
 
     var picks = state.work.food.picks.map(function (pk, i) {
       var p = 'food.picks.' + i;
-      return '<div class="rep">' +
+      return '<div class="rep" data-dragrow>' +
         repHead('food.picks', i, pk.title) +
         '<div class="frow">' +
           input('圖示', p + '.icon', { placeholder: '🥧' }) +
@@ -286,12 +289,12 @@
     return '<div class="ed-pane" data-pane="food">' +
       '<div class="fieldset"><h3>每餐速查</h3>' +
         '<p class="hint">一行一餐，對應「美食速查」上半頁。</p>' +
-        (quick || '<div class="emptyrep">仲未有</div>') +
+        (quick ? '<div data-draglist="food.quick">' + quick + '</div>' : '<div class="emptyrep">仲未有</div>') +
         addBtn('food.quick', 'foodQuick', '加一餐') +
       '</div>' +
       '<div class="fieldset"><h3>餐廳清單</h3>' +
         '<p class="hint">唔一定排入行程，當日想食邊款就撳導航。</p>' +
-        (picks || '<div class="emptyrep">仲未有</div>') +
+        (picks ? '<div data-draglist="food.picks">' + picks + '</div>' : '<div class="emptyrep">仲未有</div>') +
         addBtn('food.picks', 'foodPick', '加一間') +
       '</div>' +
       '<div class="fieldset"><h3>底部一句</h3>' +
@@ -445,6 +448,18 @@
 
   /* --- events ---------------------------------------------------- */
 
+  /* DragSort reports "index A became index B" for a named list; the
+     working copy is the source of truth, so move it there and re-render. */
+  function onDrop(listPath, from, to) {
+    var list = U.getPath(state.work, listPath);
+    if (!Array.isArray(list)) return;
+    if (!U.move(list, from, to)) return;
+    rememberOpenDays();
+    renderBody();
+    updateDirtyLabel();
+    U.toast('換咗位，記得撳儲存');
+  }
+
   function onInput(e) {
     var t = e.target;
     var path = t.getAttribute && t.getAttribute('data-path');
@@ -540,6 +555,8 @@
   document.addEventListener('input', onInput);
   document.addEventListener('change', onInput);
   document.addEventListener('click', onClick);
+
+  DragSort.onDrop = onDrop;
 
   global.Editor = { open: open, isDirty: function () { return state.work && isDirty(); } };
 })(window);
