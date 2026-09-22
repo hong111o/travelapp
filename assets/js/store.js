@@ -94,6 +94,22 @@
     return false;
   }
 
+  /* Notes are the same kind of thing as a tick — a record of the day, not
+     a change to the plan — so they skip updatedAt for the same reason. */
+  function setNote(tripId, uid, text) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      var journal = (list[i].journal && typeof list[i].journal === 'object') ? list[i].journal : {};
+      var clean = String(text == null ? '' : text).trim();
+      if (clean) journal[uid] = { note: clean, at: new Date().toISOString() };
+      else delete journal[uid];
+      list[i].journal = journal;
+      return writeRaw(list);
+    }
+    return false;
+  }
+
   function clearProgress(tripId) {
     var list = readRaw();
     for (var i = 0; i < list.length; i++) {
@@ -178,7 +194,7 @@
   global.Store = {
     all: all, get: get, save: save, remove: remove, duplicate: duplicate,
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
-    setDone: setDone, clearProgress: clearProgress, migrateUids: migrateUids,
+    setDone: setDone, setNote: setNote, clearProgress: clearProgress, migrateUids: migrateUids,
     exportTrip: exportTrip, importText: importText
   };
 })(window);

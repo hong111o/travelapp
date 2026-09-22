@@ -16,7 +16,8 @@
  *                   stops:[{ uid, time, title, star, desc, note, backup, pin,
  *                            mapQuery, mapLabel, lat, lng }] } ],
  *     food:     { quick:[{when,name,star,note}], picks:[{uid,icon,title,desc,mapQuery}], legend },
- *     progress: { "<uid>": "<ISO timestamp>" },   // visited marks
+ *     progress: { "<uid>": "<ISO timestamp>" },      // visited marks
+ *     journal:  { "<uid>": {note, at} },            // notes written on the day
  *     notes
  *   }
  *
@@ -71,6 +72,7 @@
       days: [blankDay(0, today)],
       food: { quick: [], picks: [], legend: '' },
       progress: {},
+      journal: {},
       notes: '',
       updatedAt: new Date().toISOString()
     };
@@ -165,6 +167,7 @@
         legend: str(t.food && t.food.legend)
       },
       progress: {},
+      journal: {},
       notes: str(t.notes),
       updatedAt: str(t.updatedAt) || new Date().toISOString()
     };
@@ -194,6 +197,19 @@
     var incoming = (t.progress && typeof t.progress === 'object') ? t.progress : {};
     Object.keys(incoming).forEach(function (uid) {
       if (uids[uid]) out.progress[uid] = str(incoming[uid]);
+    });
+
+    /* Same for the notes you write on the day. */
+    var notes = (t.journal && typeof t.journal === 'object') ? t.journal : {};
+    Object.keys(notes).forEach(function (uid) {
+      if (!uids[uid]) return;
+      var raw = notes[uid];
+      /* Accept a bare string as well as {note, at}. Reading .at off a
+         string would pick up String.prototype.at, so only an object has
+         a timestamp to read. */
+      var isObj = raw !== null && typeof raw === 'object';
+      var text = str(isObj ? raw.note : raw).trim();
+      if (text) out.journal[uid] = { note: text, at: isObj ? str(raw.at) : '' };
     });
 
     if (!out.startDate && out.days.length) out.startDate = out.days[0].date;

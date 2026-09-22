@@ -126,6 +126,7 @@
 
     Render.applyDayProgress(trip);
     if (actual === 'check') applyFilter();
+    paintPhotos();
 
     var day = trip.days.filter(function (d) { return d.id === actual; })[0];
     if (day) {
@@ -171,6 +172,7 @@
 
     Widgets.stopAll();
     stopTodayTicker();
+    Photos.releaseUrls();
     current = null;
     renderLibrary();
     showView('library');
@@ -255,6 +257,136 @@
     U.toast('清空咗');
   }
 
+  /* --- journal: notes + photos --------------------------------------- */
+
+  function editNote(uid) {
+    if (!current) return;
+    var existing = (current.journal[uid] || {}).note || '';
+    var next = prompt('喺呢度寫低當日嘅筆記：', existing);
+    if (next === null) return;                 /* cancelled */
+    if (!Store.setNote(current.id, uid, next)) {
+      U.toast('儲存唔到筆記', true);
+      return;
+    }
+    var clean = String(next).trim();
+    if (clean) current.journal[uid] = { note: clean, at: new Date().toISOString() };
+    else delete current.journal[uid];
+    Render.refreshJournal(current, uid);
+    paintPhotos(uid);
+    U.toast(clean ? '記低咗' : '刪咗筆記');
+  }
+
+  /* One hidden file input, retargeted at whichever place is being added to. */
+  var photoInput = null;
+  var photoTarget = null;
+
+  function ensurePhotoInput() {
+    if (photoInput) return photoInput;
+    photoInput = document.createElement('input');
+    photoInput.type = 'file';
+    photoInput.accept = 'image/*';
+    photoInput.multiple = true;
+    photoInput.hidden = true;
+    photoInput.addEventListener('change', function () {
+      var files = Array.prototype.slice.call(photoInput.files || []);
+      var uid = photoTarget;
+      photoInput.value = '';
+      if (!uid || !files.length || !current) return;
+
+      U.toast('處理緊 ' + files.length + ' 張相…');
+      var tripId = current.id;
+      files.reduce(function (chain, file) {
+        return chain.then(function (n) {
+          return Photos.add(tripId, uid, file).then(function () { return n + 1; })
+            .catch(function (err) {
+              console.warn('[photo]', file.name, err);
+              U.toast(err.message || '加唔到呢張相', true);
+              return n;
+            });
+        });
+      }, Promise.resolve(0)).then(function (n) {
+        if (n) U.toast('加咗 ' + n + ' 張相 ✓');
+        paintPhotos(uid);
+      });
+    });
+    document.body.appendChild(photoInput);
+    return photoInput;
+  }
+
+  function addPhoto(uid) {
+    if (!Photos.supported()) { U.toast('呢個瀏覽器唔支援相片儲存', true); return; }
+    photoTarget = uid;
+    ensurePhotoInput().click();
+  }
+
+  /* Fill in the thumbnails for one place, or for every place on screen. */
+  function paintPhotos(uid) {
+    if (!current) return;
+    var slots = uid
+      ? document.querySelectorAll('#view-trip [data-photos="' + uid + '"]')
+      : document.querySelectorAll('#view-trip [data-photos]');
+    if (!slots.length || !Photos.supported()) return;
+
+    var seen = {};
+    Array.prototype.forEach.call(slots, function (slot) {
+      var id = slot.getAttribute('data-photos');
+      if (seen[id]) return;
+      seen[id] = true;
+
+      Photos.listFor(current.id, id).then(function (recs) {
+        var html = recs.map(function (r) {
+          return '<button class="jr-th" data-act="viewphoto" data-photo="' + r.id + '">' +
+            '<img src="' + Photos.urlFor(r.blob) + '" alt="" loading="lazy"></button>';
+        }).join('');
+        var all = document.querySelectorAll('#view-trip [data-photos="' + id + '"]');
+        for (var i = 0; i < all.length; i++) all[i].innerHTML = html;
+      }).catch(function (err) { console.warn('[photos]', err); });
+    });
+  }
+
+  /* --- lightbox ------------------------------------------------------- */
+
+  function openPhoto(photoId) {
+    if (!current) return;
+    var box = document.createElement('div');
+    box.className = 'lightbox';
+    box.innerHTML = '<div class="lb-bar">' +
+        '<button class="lb-b" data-lb="close">✕ 閂</button>' +
+        '<button class="lb-b del" data-lb="del">🗑 刪除</button>' +
+      '</div><div class="lb-img"></div>';
+    document.body.appendChild(box);
+
+    /* Reuse the thumbnail's object URL — it is the same blob, already
+       decoded, so the full view opens instantly. */
+    var thumb = document.querySelector('[data-photo="' + photoId + '"] img');
+    var uid = findUidForPhoto(photoId);
+    var img = document.createElement('img');
+    img.src = thumb ? thumb.src : '';
+    box.querySelector('.lb-img').appendChild(img);
+
+    function close() { box.remove(); }
+
+    box.addEventListener('click', function (e) {
+      var act = e.target.closest ? e.target.closest('[data-lb]') : null;
+      if (!act) { if (e.target === box || e.target.className === 'lb-img') close(); return; }
+      if (act.getAttribute('data-lb') === 'close') { close(); return; }
+      if (act.getAttribute('data-lb') === 'del') {
+        if (!confirm('刪除呢張相？')) return;
+        Photos.remove(Number(photoId)).then(function () {
+          close();
+          paintPhotos(uid || undefined);
+          U.toast('刪咗');
+        }).catch(function () { U.toast('刪唔到', true); });
+      }
+    });
+  }
+
+  function findUidForPhoto(photoId) {
+    var node = document.querySelector('[data-photo="' + photoId + '"]');
+    var slot = node && node.closest('[data-photos]');
+    return slot ? slot.getAttribute('data-photos') : '';
+  }
+
   /* --- offline maps ----------------------------------------------- */
 
   function downloadMaps(btn) {
@@ -316,6 +448,9 @@
     else if (act === 'check') { go('#/trip/' + encodeURIComponent(current.id) + '/check'); }
     else if (act === 'tick') { e.preventDefault(); toggleTick(btn.getAttribute('data-uid')); }
     else if (act === 'ckreset') { e.preventDefault(); resetProgress(); }
+    else if (act === 'note') { e.preventDefault(); editNote(btn.getAttribute('data-uid')); }
+    else if (act === 'photo') { e.preventDefault(); addPhoto(btn.getAttribute('data-uid')); }
+    else if (act === 'viewphoto') { e.preventDefault(); openPhoto(btn.getAttribute('data-photo')); }
     else if (act === 'export') {
       var t = Store.get(id);
       if (t) Store.exportTrip(t);
@@ -330,8 +465,13 @@
     else if (act === 'del') {
       var target = Store.get(id);
       if (!target) return;
-      if (!confirm('刪除「' + (target.title || '未命名行程') + '」？\n\n呢個動作冇得還原。想留底就先撳「⬇️ 匯出」。')) return;
+      if (!confirm('刪除「' + (target.title || '未命名行程') + '」？\n\n連相片同筆記一齊刪，冇得還原。想留底就先撳「⬇️ 匯出」。')) return;
       Store.remove(id);
+      /* Photos live in IndexedDB, outside the trip record, so they would
+         otherwise sit there forever taking up space. */
+      if (Photos.supported()) {
+        Photos.clearTrip(id).catch(function (err) { console.warn('[photos] cleanup', err); });
+      }
       renderLibrary();
       U.toast('刪除咗');
     }

@@ -296,6 +296,28 @@
       '" title="' + (done ? '已經去咗' : '標做去咗') + '"><span>✓</span></button>';
   }
 
+  function noteOf(uid) {
+    var j = activeTrip && activeTrip.journal && activeTrip.journal[uid];
+    return j ? j.note : '';
+  }
+
+  /* The record of what actually happened, under the plan: your note and
+     your photos. Photo thumbnails are filled in asynchronously once
+     IndexedDB answers — see App.paintPhotos. */
+  function journalHTML(uid) {
+    if (!uid) return '';
+    var note = noteOf(uid);
+    return '<div class="jr" data-jr="' + esc(uid) + '">' +
+      '<div class="jr-photos" data-photos="' + esc(uid) + '"></div>' +
+      (note ? '<div class="jr-note" data-note="' + esc(uid) + '">' + rich(note) + '</div>' : '') +
+      '<div class="jr-acts">' +
+        '<button class="jr-b" data-act="note" data-uid="' + esc(uid) + '">' +
+          (note ? '✏️ 改筆記' : '✏️ 加筆記') + '</button>' +
+        '<button class="jr-b" data-act="photo" data-uid="' + esc(uid) + '">📷 加相</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function stopHTML(s) {
     if (!s.title && !s.desc && !s.time) return '';
     var nav = s.mapQuery
@@ -310,6 +332,7 @@
         (s.pin ? '<span class="pin">📍 ' + esc(s.pin) + '</span>' : '') +
         (s.backup ? '<span class="bk"><b>Backup：</b>' + rich(s.backup) + '</span>' : '') +
         (s.note ? '<span class="bk">' + rich(s.note) + '</span>' : '') +
+        journalHTML(s.uid) +
       '</div>' + tickBtn(s.uid) + '</div>';
   }
 
@@ -380,6 +403,9 @@
       '<div class="ckb">' +
         '<div class="ckt">' + rich(it.title) + (it.star ? ' <span class="star">★</span>' : '') + '</div>' +
         (it.time ? '<div class="ckm">' + esc(it.time) + '</div>' : '') +
+        '<div class="ckj" data-ckj="' + esc(it.uid) + '">' +
+          (noteOf(it.uid) ? '<span class="ckjn">✏️ ' + esc(noteOf(it.uid)) + '</span>' : '') +
+        '</div>' +
       '</div>' +
       (it.mapQuery ? '<a class="gmap ckn" href="' + esc(U.mapsUrl(it.mapQuery)) +
         '" target="_blank" rel="noopener">🧭</a>' : '') +
@@ -473,6 +499,7 @@
             (p.mapQuery ? '<a class="gmap" href="' + esc(U.mapsUrl(p.mapQuery)) +
               '" target="_blank" rel="noopener">🧭 導航</a>' : '') +
             (p.desc ? '<p>' + rich(p.desc) + '</p>' : '') +
+            journalHTML(p.uid) +
           '</div>' + tickBtn(p.uid) + '</div>';
         }).join('') + '</div>'
       : '';
@@ -510,8 +537,24 @@
     }
   }
 
+  /* Redraw every copy of one place's journal strip (day view, food view,
+     checklist) without touching the rest of the page. */
+  function refreshJournal(t, uid) {
+    activeTrip = t;
+    var strips = document.querySelectorAll('#view-trip [data-jr="' + uid + '"]');
+    for (var i = 0; i < strips.length; i++) {
+      strips[i].outerHTML = journalHTML(uid);
+    }
+    var marks = document.querySelectorAll('#view-trip [data-ckj="' + uid + '"]');
+    var note = noteOf(uid);
+    for (var j = 0; j < marks.length; j++) {
+      marks[j].innerHTML = note ? '<span class="ckjn">✏️ ' + esc(note) + '</span>' : '';
+    }
+  }
+
   global.Render = {
     trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress,
+    refreshJournal: refreshJournal, journalHTML: journalHTML,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
   };
 })(window);
