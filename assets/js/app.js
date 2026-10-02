@@ -12,6 +12,22 @@
 
   var current = null;   // trip currently rendered in #view-trip
   var todayTimer = null;
+  var pendingFlash = null;   /* uid to highlight once the view has rendered */
+
+  /* Scroll to a place and flash it. Called from openTrip rather than on a
+     timer, because the row only exists after the view has been built and
+     guessing a delay raced the render. */
+  function applyPendingFlash() {
+    if (!pendingFlash) return;
+    var uid = pendingFlash;
+    pendingFlash = null;
+    var node = document.querySelector('#view-trip .subview.active [data-uid="' + uid + '"]')
+      || document.querySelector('#view-trip [data-uid="' + uid + '"]');
+    if (!node) return;
+    node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    node.classList.add('flash');
+    setTimeout(function () { node.classList.remove('flash'); }, 1600);
+  }
 
   /* Keep "now & next" honest while the app sits open. Once a minute is
      plenty — stop times have minute resolution. */
@@ -126,6 +142,7 @@
     window.scrollTo(0, 0);
 
     Render.applyDayProgress(trip);
+    applyPendingFlash();
     if (actual === 'check') applyFilter();
     if (actual === 'search') {
       var q = U.el('sch-q');
@@ -267,6 +284,107 @@
     U.toast('清空咗');
   }
 
+  /* --- unplanned finds ------------------------------------------------ */
+
+  var findCoords = null;   /* set only when GPS actually answered */
+
+  function openFindSheet(dayId) {
+    if (!current) return;
+    if (!dayId) {
+      var today = U.todaysDay(current);
+      dayId = today ? today.id : (current.days[0] && current.days[0].id);
+    }
+    if (!dayId) { U.toast('呢個行程仲未有日子', true); return; }
+
+    findCoords = null;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.findSheetHTML(current, dayId);
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    setTimeout(function () {
+      var n = U.el('find-name');
+      if (n) n.focus();
+    }, 80);
+
+    sheet.addEventListener('click', function (e) {
+      var kind = e.target.closest ? e.target.closest('[data-kind]') : null;
+      if (kind) {
+        var all = sheet.querySelectorAll('.kindb');
+        for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === kind);
+        return;
+      }
+      var close = e.target.closest ? e.target.closest('[data-find="close"]') : null;
+      if (close || e.target === sheet) closeFindSheet();
+    });
+
+    U.el('find-gps').addEventListener('click', locateForFind);
+    U.el('find-save').addEventListener('click', saveFind);
+  }
+
+  function closeFindSheet() {
+    var sheet = U.el('find-sheet');
+    if (sheet) sheet.remove();
+    findCoords = null;
+  }
+
+  function locateForFind() {
+    var note = U.el('find-gps-note'), btn = U.el('find-gps');
+    if (!navigator.geolocation) { note.textContent = '呢個瀏覽器唔支援定位。'; return; }
+
+    btn.disabled = true;
+    note.textContent = '搵緊你喺邊…';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      findCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      btn.disabled = false;
+      btn.textContent = '📍 已經攞到位置 ✓';
+      note.textContent = '準確度約 ' + Math.round(pos.coords.accuracy) + ' 米。再撳一次可以重新攞。';
+    }, function (err) {
+      btn.disabled = false;
+      /* GPS works with no data connection, but permission can be refused
+         and indoors it can simply time out. Neither should block saving. */
+      note.textContent = err.code === err.PERMISSION_DENIED
+        ? '冇咗定位權限 —— 照記低都得，淨係唔會出現喺地圖。'
+        : '攞唔到位置（室內成日咁）—— 照記低都得。';
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }
+
+  function saveFind() {
+    var name = (U.el('find-name').value || '').trim();
+    if (!name) { U.toast('填個名先', true); U.el('find-name').focus(); return; }
+
+    var kindBtn = document.querySelector('#find-sheet .kindb.on');
+    var icon = kindBtn ? kindBtn.getAttribute('data-kind') : '';
+    var dayId = U.el('find-day').value;
+    var city = (current.place && current.place.name) || '';
+
+    var stop = {
+      time: (U.el('find-time').value || '').trim(),
+      title: (icon ? icon + ' ' : '') + name,
+      desc: (U.el('find-note').value || '').trim(),
+      /* Navigation should work even with no coordinates, so always give
+         Maps something to search for. */
+      mapQuery: city ? name + ' ' + city : name,
+      mapLabel: name,
+      lat: findCoords ? findCoords.lat : null,
+      lng: findCoords ? findCoords.lng : null
+    };
+
+    var tripId = current.id;
+    var saved = Store.addFind(tripId, dayId, stop);
+    if (!saved) { U.toast('記唔到', true); return; }
+
+    closeFindSheet();
+    U.toast('記低咗 ✓');
+
+    /* A new stop changes the plan, so the trip has to be re-rendered.
+       Clearing `current` forces that, then we land on the day it joined. */
+    current = null;
+    pendingFlash = saved.uid;
+    var target = '#/trip/' + encodeURIComponent(tripId) + '/' + encodeURIComponent(dayId);
+    if (location.hash === target) route();
+    else location.hash = target;
+  }
+
   /* --- search --------------------------------------------------------- */
 
   var searchRows = null;
@@ -302,14 +420,8 @@
      which row you landed on. */
   function gotoPlace(sub, uid) {
     if (!current) return;
+    pendingFlash = uid;
     go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(sub));
-    setTimeout(function () {
-      var node = document.querySelector('#view-trip .subview[data-sub="' + sub + '"] [data-uid="' + uid + '"]');
-      if (!node) return;
-      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      node.classList.add('flash');
-      setTimeout(function () { node.classList.remove('flash'); }, 1600);
-    }, 220);
   }
 
   /* --- journal: notes + photos --------------------------------------- */
@@ -503,6 +615,7 @@
     else if (act === 'food') { go('#/trip/' + encodeURIComponent(current.id) + '/food'); }
     else if (act === 'check') { go('#/trip/' + encodeURIComponent(current.id) + '/check'); }
     else if (act === 'search') { go('#/trip/' + encodeURIComponent(current.id) + '/search'); }
+    else if (act === 'addfind') { e.preventDefault(); openFindSheet(btn.getAttribute('data-day')); }
     else if (act === 'goto') {
       e.preventDefault();
       gotoPlace(btn.getAttribute('data-sub'), btn.getAttribute('data-uid'));

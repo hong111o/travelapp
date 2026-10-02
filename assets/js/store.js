@@ -121,6 +121,40 @@
     return false;
   }
 
+  /* Record somewhere you actually went that was never in the plan.
+     Slotted into the day by time so it reads in order, and marked visited
+     immediately — you are standing in it. */
+  function addFind(tripId, dayId, stop) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+
+      var trip = Schema.normalize(list[i]);
+      var day = trip.days.filter(function (d) { return d.id === dayId; })[0];
+      if (!day) return null;
+
+      var fresh = Schema.blankStop();
+      Object.keys(stop).forEach(function (k) { fresh[k] = stop[k]; });
+      fresh.unplanned = true;
+
+      var mins = U.stopMinutes(fresh.time);
+      var at = day.stops.length;
+      if (mins != null) {
+        for (var j = 0; j < day.stops.length; j++) {
+          var other = U.stopMinutes(day.stops[j].time);
+          if (other != null && other > mins) { at = j; break; }
+        }
+      }
+      day.stops.splice(at, 0, fresh);
+
+      trip.progress[fresh.uid] = new Date().toISOString();
+      trip.updatedAt = new Date().toISOString();
+      list[i] = trip;
+      return writeRaw(list) ? fresh : null;
+    }
+    return null;
+  }
+
   /* Trips saved before stops had uids get them assigned by normalize, but
      normalize runs on every read — so without persisting them once, every
      read would mint fresh ids and a tick would never stick. Run at startup,
@@ -235,7 +269,8 @@
   global.Store = {
     all: all, get: get, save: save, remove: remove, duplicate: duplicate,
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
-    setDone: setDone, setNote: setNote, clearProgress: clearProgress, migrateUids: migrateUids,
+    setDone: setDone, setNote: setNote, addFind: addFind,
+    clearProgress: clearProgress, migrateUids: migrateUids,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON
   };
 })(window);

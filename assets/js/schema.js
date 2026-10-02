@@ -13,7 +13,7 @@
  *     todos:    [ { level:'now'|'soon'|'day', text } ],
  *     links:    [ { icon, label, url } ],
  *     days:     [ { id, title, date, theme, drawRoute, mapNote,
- *                   stops:[{ uid, time, title, star, desc, note, backup, pin,
+ *                   stops:[{ uid, time, title, star, unplanned, desc, note, backup, pin,
  *                            mapQuery, mapLabel, lat, lng }] } ],
  *     food:     { quick:[{when,name,star,note}], picks:[{uid,icon,title,desc,mapQuery}], legend },
  *     progress: { "<uid>": "<ISO timestamp>" },      // visited marks
@@ -38,7 +38,7 @@
   function arr(v) { return Array.isArray(v) ? v : []; }
 
   function blankStop() {
-    return { uid: U.uid('s'), time: '', title: '', star: false, desc: '', note: '', backup: '', pin: '', mapQuery: '', mapLabel: '', lat: null, lng: null };
+    return { uid: U.uid('s'), time: '', title: '', star: false, unplanned: false, desc: '', note: '', backup: '', pin: '', mapQuery: '', mapLabel: '', lat: null, lng: null };
   }
 
   function blankDay(index, startDate) {
@@ -141,6 +141,10 @@
               time: str(s.time),
               title: str(s.title),
               star: !!s.star,
+              /* Walked into on the day rather than planned. Same shape as
+                 any other stop, so it gets a map pin, search, ticks and a
+                 journal for free — only the badge differs. */
+              unplanned: !!s.unplanned,
               desc: str(s.desc),
               note: str(s.note),
               backup: str(s.backup),

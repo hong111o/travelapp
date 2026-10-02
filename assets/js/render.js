@@ -80,7 +80,10 @@
         '<span class="tw-ttl">' + esc(day.title || ('Day ' + (index + 1))) + '</span>' +
         '<span class="tw-live">● 今日</span>' +
       '</div>' + body +
-      '<button class="btn btn-sm tw-go" data-act="day" data-day="' + esc(day.id) + '">睇今日行程 ›</button>';
+      '<div class="tw-btns">' +
+        '<button class="btn btn-sm tw-go" data-act="day" data-day="' + esc(day.id) + '">睇今日行程 ›</button>' +
+        '<button class="btn btn-sm tw-go" data-act="addfind" data-day="' + esc(day.id) + '">＋ 即興發現</button>' +
+      '</div>';
   }
 
   function todayHTML(trip) {
@@ -334,10 +337,12 @@
     var nav = s.mapQuery
       ? '<a class="gmap" href="' + esc(U.mapsUrl(s.mapQuery)) + '" target="_blank" rel="noopener">🧭 導航</a>'
       : '';
-    return '<div class="stop' + (isDone(s.uid) ? ' done' : '') + '" data-uid="' + esc(s.uid) + '">' +
+    return '<div class="stop' + (isDone(s.uid) ? ' done' : '') +
+      (s.unplanned ? ' unplanned' : '') + '" data-uid="' + esc(s.uid) + '">' +
       '<div class="time">' + esc(s.time) + '</div>' +
       '<div>' +
-        '<h4>' + rich(s.title) + (s.star ? ' <span class="star">★</span>' : '') + '</h4>' +
+        '<h4>' + rich(s.title) + (s.star ? ' <span class="star">★</span>' : '') +
+          (s.unplanned ? ' <span class="findbadge">即興</span>' : '') + '</h4>' +
         nav +
         (s.desc ? '<p>' + rich(s.desc) + '</p>' : '') +
         (s.pin ? '<span class="pin">📍 ' + esc(s.pin) + '</span>' : '') +
@@ -370,7 +375,12 @@
       '<div class="day-top"><div class="dn">' + esc(dn) + '</div>' +
         '<h3>' + esc(day.title || ('Day ' + (index + 1))) + '</h3>' +
         (day.theme ? '<div class="theme">' + esc(day.theme) + '</div>' : '') + '</div>' +
-      '<div class="stops">' + day.stops.map(stopHTML).join('') + '</div>' +
+      '<div class="stops">' + day.stops.map(stopHTML).join('') +
+        '<div class="findrow">' +
+          '<button class="btn findbtn" data-act="addfind" data-day="' + esc(day.id) + '">' +
+            '＋ 記低一個即興發現</button>' +
+        '</div>' +
+      '</div>' +
       map +
       '</div></div>';
   }
@@ -390,6 +400,7 @@
     trip.days.forEach(function (day, i) {
       day.stops.filter(tickable).forEach(function (s) {
         items.push({ uid: s.uid, title: s.title, time: s.time, star: s.star,
+                     unplanned: s.unplanned,
                      mapQuery: s.mapQuery, group: 'Day ' + (i + 1), dayId: day.id,
                      groupTitle: day.title || ('Day ' + (i + 1)) });
       });
@@ -409,10 +420,12 @@
 
   function checkRow(it) {
     var done = isDone(it.uid);
-    return '<div class="ckrow' + (done ? ' done' : '') + '" data-uid="' + esc(it.uid) + '">' +
+    return '<div class="ckrow' + (done ? ' done' : '') +
+      (it.unplanned ? ' unplanned' : '') + '" data-uid="' + esc(it.uid) + '">' +
       tickBtn(it.uid) +
       '<div class="ckb">' +
-        '<div class="ckt">' + rich(it.title) + (it.star ? ' <span class="star">★</span>' : '') + '</div>' +
+        '<div class="ckt">' + rich(it.title) + (it.star ? ' <span class="star">★</span>' : '') +
+          (it.unplanned ? ' <span class="findbadge">即興</span>' : '') + '</div>' +
         (it.time ? '<div class="ckm">' + esc(it.time) + '</div>' : '') +
         '<div class="ckj" data-ckj="' + esc(it.uid) + '">' +
           (noteOf(it.uid) ? '<span class="ckjn">✏️ ' + esc(noteOf(it.uid)) + '</span>' : '') +
@@ -582,6 +595,52 @@
       '</div></div>';
   }
 
+  /* The capture sheet. Deliberately short: you are standing in a bar
+     with one hand free, so a name and a tap on 用我而家位置 is enough and
+     everything else is optional. */
+  function findSheetHTML(trip, dayId) {
+    var now = new Date();
+    var hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    var days = trip.days.map(function (d, i) {
+      var label = 'Day ' + (i + 1) + (d.title ? ' · ' + U.plain(d.title) : '');
+      return '<option value="' + esc(d.id) + '"' + (d.id === dayId ? ' selected' : '') + '>' +
+        esc(label) + '</option>';
+    }).join('');
+
+    var kinds = [['🍽️', '食'], ['☕', '飲'], ['🛍️', '買'], ['📍', '景點']];
+
+    return '<div class="sheet" id="find-sheet"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2>＋ 即興發現</h2>' +
+        '<button class="iconbtn" data-find="close" aria-label="閂">✕</button></div>' +
+      '<p class="tinynote" style="margin-top:0">唔喺計劃入面、但係去咗嘅地方。記低咗會自動當做「去咗」。</p>' +
+
+      '<div class="f"><label>叫咩名</label>' +
+        '<input id="find-name" type="text" placeholder="例如 Bar Alfaia" autocomplete="off"></div>' +
+
+      '<div class="f"><label>類型</label><div class="kindrow">' +
+        kinds.map(function (k, i) {
+          return '<button class="kindb' + (i === 0 ? ' on' : '') + '" data-kind="' + esc(k[0]) + '">' +
+            esc(k[0]) + ' ' + esc(k[1]) + '</button>';
+        }).join('') + '</div></div>' +
+
+      '<div class="frow">' +
+        '<div class="f"><label>幾點</label><input id="find-time" type="text" value="~' + hhmm + '"></div>' +
+        '<div class="f"><label>邊一日</label><select id="find-day">' + days + '</select></div>' +
+      '</div>' +
+
+      '<div class="f"><label>想講啲咩 <span class="opt">（可留空）</span></label>' +
+        '<textarea id="find-note" placeholder="好唔好食？值唔值得再嚟？"></textarea></div>' +
+
+      '<button class="btn" id="find-gps" style="width:100%">📍 用我而家嘅位置</button>' +
+      '<p class="tinynote" id="find-gps-note">攞到位置就會喺地圖見到呢個點。</p>' +
+
+      '<div class="sheet-acts">' +
+        '<button class="btn" data-find="close">取消</button>' +
+        '<button class="btn btn-primary" id="find-save">記低佢</button>' +
+      '</div>' +
+    '</div></div>';
+  }
+
   /* --- entry point --------------------------------------------- */
 
   function trip(t, container) {
@@ -624,6 +683,7 @@
     trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress,
     refreshJournal: refreshJournal, journalHTML: journalHTML,
     searchIndex: searchIndex, searchResultHTML: searchResultHTML,
+    findSheetHTML: findSheetHTML,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
   };
 })(window);

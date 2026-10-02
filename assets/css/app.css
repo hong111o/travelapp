@@ -459,3 +459,45 @@ body.dragging-now .rep{transition:transform .14s ease}
 .pasterow{display:flex;gap:9px;margin-top:11px}
 .pasterow .btn{flex:1}
 .pastecard .jsonarea::placeholder{color:var(--ink-soft);opacity:.7}
+
+/* ============================================================
+   UNPLANNED FINDS — places you walked into
+   ============================================================ */
+.findbadge{display:inline-block;font-size:.64rem;font-weight:700;vertical-align:2px;
+  background:var(--amber);color:#3a2600;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.findrow{padding:12px 0 14px;border-top:1px solid var(--sand-2)}
+.findbtn{width:100%;border-style:dashed;color:var(--teal)}
+.tw-btns{display:flex;gap:8px;margin-top:11px}
+.tw-btns .btn{flex:1;margin-top:0}
+
+/* capture sheet */
+.sheet{position:fixed;inset:0;z-index:85;background:rgba(10,20,24,.5);
+  display:flex;align-items:flex-end;justify-content:center;overflow-y:auto}
+.sheet-in{width:100%;max-width:560px;background:var(--sand);border-radius:20px 20px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:94vh;overflow-y:auto;
+  box-shadow:0 -8px 32px rgba(0,0,0,.26)}
+@media (min-width:600px){
+  .sheet{align-items:center}
+  .sheet-in{border-radius:20px;max-height:88vh}
+}
+.sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.sheet-head h2{flex:1;font-family:'Fraunces',serif;font-weight:600;font-size:1.2rem;color:var(--sea)}
+.sheet .f input,.sheet .f textarea,.sheet .f select{background:var(--white)}
+.sheet .f textarea{min-height:62px}
+.kindrow{display:flex;gap:7px;flex-wrap:wrap}
+.kindb{flex:1;min-width:72px;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:700;
+  color:var(--ink-soft);background:var(--white);border:1px solid var(--line);
+  border-radius:11px;padding:9px 6px}
+.kindb.on{background:var(--sea);border-color:var(--sea);color:#fff}
+.sheet-acts{display:flex;gap:9px;margin-top:16px}
+.sheet-acts .btn{flex:1}
+
+/* A find is by definition somewhere you went, so the strike-through and
+   dimming that mean "ticked off the plan" read wrong on it. Keep the tick
+   and the count; drop the crossed-out look. */
+.stop.done.unplanned .time,
+.stop.done.unplanned h4,
+.stop.done.unplanned p{opacity:1}
+.stop.done.unplanned h4{text-decoration:none}
+.ckrow.done.unplanned .ckt{opacity:1;text-decoration:none}
+.ckrow.done.unplanned .ckm{opacity:1}
