@@ -501,3 +501,40 @@ body.dragging-now .rep{transition:transform .14s ease}
 .stop.done.unplanned h4{text-decoration:none}
 .ckrow.done.unplanned .ckt{opacity:1;text-decoration:none}
 .ckrow.done.unplanned .ckm{opacity:1}
+
+/* ============================================================
+   WALKING LEGS between consecutive stops
+   ============================================================ */
+.leg{display:flex;align-items:center;gap:7px;margin:0 0 0 73px;padding:5px 0 9px;
+  font-size:.76rem;color:var(--ink-soft)}
+.leg-i{font-size:.9rem}
+.leg.far{color:var(--star);font-weight:500}
+
+/* ============================================================
+   行程體檢
+   ============================================================ */
+.cusum{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.cupill{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 11px}
+.cupill.bad{background:#F6D9D4;color:#8C2C1C}
+.cupill.warn{background:var(--amber-soft);color:#7A4A05}
+.cupill.info{background:#DDECE9;color:var(--sea)}
+
+.cubad,.cuwarn,.cuinfo{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;
+  cursor:pointer;font-family:inherit;color:inherit;background:var(--white);
+  border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-top:9px}
+.cubad{border-left:4px solid #C0392B}
+.cuwarn{border-left:4px solid var(--amber)}
+.cuinfo{border-left:4px solid var(--teal)}
+.cubad:active,.cuwarn:active,.cuinfo:active{background:var(--sand-2)}
+.cu-i{font-size:1.1rem;flex-shrink:0;line-height:1.4}
+.cu-b{flex:1;min-width:0}
+.cu-t{display:block;font-size:.93rem;font-weight:700;color:var(--ink);line-height:1.45}
+.cu-s{display:block;font-size:.78rem;color:var(--ink-soft);margin-top:2px}
+.cubad .arrow,.cuwarn .arrow,.cuinfo .arrow{color:var(--amber);font-size:1.2rem;flex-shrink:0}
+
+.cuok{text-align:center;padding:26px 20px}
+.cuok-i{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;
+  background:var(--teal);color:#fff;font-size:1.4rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.dcard.checkup .num{background:linear-gradient(150deg,#4a8f7b,#6aae91)}
+.dcard.checkup.hasbad .num{background:linear-gradient(150deg,#C0392B,#d9614f)}

@@ -159,6 +159,36 @@
     return 'upcoming';
   }
 
+  /* --- distance -------------------------------------------------
+     Straight-line, from coordinates the trip already carries. No API, no
+     key, works offline. Real walking is longer than the crow flies, so
+     the time estimate pads for that rather than pretending to route. */
+
+  function metresBetween(a, b) {
+    if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) return null;
+    var R = 6371000;
+    var toRad = Math.PI / 180;
+    var dLat = (b.lat - a.lat) * toRad;
+    var dLng = (b.lng - a.lng) * toRad;
+    var la1 = a.lat * toRad, la2 = b.lat * toRad;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return Math.round(2 * R * Math.asin(Math.min(1, Math.sqrt(h))));
+  }
+
+  /* ~4.5 km/h, times 1.3 because streets are not straight lines, plus a
+     minute of getting out of one door and into the next. */
+  function walkMinutes(metres) {
+    if (metres == null) return null;
+    return Math.max(1, Math.round((metres * 1.3) / 75) + 1);
+  }
+
+  function distanceText(metres) {
+    if (metres == null) return '';
+    if (metres < 1000) return Math.round(metres / 10) * 10 + ' m';
+    return (metres / 1000).toFixed(metres < 10000 ? 1 : 0) + ' km';
+  }
+
   /* --- object paths (used by the editor's data binding) -------- */
 
   function getPath(obj, path) {
@@ -221,6 +251,7 @@
     dateRangeZH: dateRangeZH, addDays: addDays, todayISO: todayISO, tripPhase: tripPhase,
     getPath: getPath, setPath: setPath, clone: clone, move: move,
     stopMinutes: stopMinutes, nowMinutes: nowMinutes, dayProgress: dayProgress,
+    metresBetween: metresBetween, walkMinutes: walkMinutes, distanceText: distanceText,
     todaysDay: todaysDay, untilText: untilText,
     toast: toast, download: download
   };

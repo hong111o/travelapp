@@ -420,7 +420,7 @@
      which row you landed on. */
   function gotoPlace(sub, uid) {
     if (!current) return;
-    pendingFlash = uid;
+    pendingFlash = uid || null;
     go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(sub));
   }
 
@@ -616,6 +616,7 @@
     else if (act === 'check') { go('#/trip/' + encodeURIComponent(current.id) + '/check'); }
     else if (act === 'search') { go('#/trip/' + encodeURIComponent(current.id) + '/search'); }
     else if (act === 'addfind') { e.preventDefault(); openFindSheet(btn.getAttribute('data-day')); }
+    else if (act === 'checkup') { go('#/trip/' + encodeURIComponent(current.id) + '/checkup'); }
     else if (act === 'goto') {
       e.preventDefault();
       gotoPlace(btn.getAttribute('data-sub'), btn.getAttribute('data-uid'));

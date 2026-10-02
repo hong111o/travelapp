@@ -208,6 +208,7 @@
     }).join('');
 
     cards += checkCardHTML(trip);
+    cards += checkupCardHTML(trip);
 
     /* A search box over three stops is just a slower way to scroll, so it
        only appears once a trip is big enough to lose things in. */
@@ -352,6 +353,21 @@
       '</div>' + tickBtn(s.uid) + '</div>';
   }
 
+  /* The gap between two stops, shown where both have coordinates. Reads
+     as part of the timeline rather than as a separate fact. */
+  function legHTML(a, b) {
+    if (!a || !b) return '';
+    var metres = U.metresBetween(a, b);
+    if (metres == null || metres < 60) return '';
+    var walk = U.walkMinutes(metres);
+    var far = metres > 2500;
+    return '<div class="leg' + (far ? ' far' : '') + '">' +
+      '<span class="leg-i">' + (far ? '🚕' : '🚶') + '</span>' +
+      (far ? '相距 ' + esc(U.distanceText(metres)) + ' · 行路要 ~' + walk + ' 分鐘'
+           : '行 ~' + walk + ' 分鐘 · ' + esc(U.distanceText(metres))) +
+      '</div>';
+  }
+
   function dayHTML(trip, day, index) {
     var wd = U.weekdayZH(day.date), short = U.shortDate(day.date);
     var dn = 'Day ' + (index + 1) + (short ? ' · ' + (wd ? '星期' + wd + ' ' : '') + short : '');
@@ -375,7 +391,16 @@
       '<div class="day-top"><div class="dn">' + esc(dn) + '</div>' +
         '<h3>' + esc(day.title || ('Day ' + (index + 1))) + '</h3>' +
         (day.theme ? '<div class="theme">' + esc(day.theme) + '</div>' : '') + '</div>' +
-      '<div class="stops">' + day.stops.map(stopHTML).join('') +
+      '<div class="stops">' + day.stops.map(function (st, i) {
+          var html = stopHTML(st);
+          if (!html) return '';
+          /* Find the next stop that will actually render, so a leg never
+             spans a row that was dropped. */
+          for (var j = i + 1; j < day.stops.length; j++) {
+            if (stopHTML(day.stops[j])) return html + legHTML(st, day.stops[j]);
+          }
+          return html;
+        }).join('') +
         '<div class="findrow">' +
           '<button class="btn findbtn" data-act="addfind" data-day="' + esc(day.id) + '">' +
             '＋ 記低一個即興發現</button>' +
@@ -494,6 +519,67 @@
       '<div class="num"><b>' + c.done + '</b><small>/ ' + c.total + '</small></div>' +
       '<div class="txt"><div class="d">全程</div><div class="t">打卡清單</div>' +
       '<div class="s">去過嘅景點同餐廳一覽</div></div><div class="arrow">›</div></button>';
+  }
+
+  /* --- 行程體檢 -------------------------------------------------- */
+
+  var LEVEL = {
+    bad:  { cls: 'bad',  label: '要睇下' },
+    warn: { cls: 'warn', label: '注意' },
+    info: { cls: 'info', label: '資料' }
+  };
+
+  function checkupHTML(trip) {
+    var findings = Checkup.run(trip);
+    var c = Checkup.counts(findings);
+
+    var body = findings.length
+      ? findings.map(function (f) {
+          var lv = LEVEL[f.level] || LEVEL.info;
+          var attrs = f.goTo
+            ? ' data-act="goto" data-sub="' + esc(f.goTo) + '"' +
+              (f.uid ? ' data-uid="' + esc(f.uid) + '"' : '')
+            : '';
+          return '<button class="cu' + lv.cls + '"' + attrs + '>' +
+            '<span class="cu-i">' + esc(f.icon) + '</span>' +
+            '<span class="cu-b">' +
+              '<span class="cu-t">' + esc(f.text) + '</span>' +
+              '<span class="cu-s">' + esc(f.sub) + '</span>' +
+            '</span>' +
+            (f.goTo ? '<span class="arrow">›</span>' : '') +
+          '</button>';
+        }).join('')
+      : '<div class="card cuok"><div class="cuok-i">✓</div>' +
+        '<h2>睇落冇問題</h2>' +
+        '<p class="tinynote">座標、時間、行程密度都查過晒。</p></div>';
+
+    return '<div class="subview" data-sub="checkup"><div class="wrap">' +
+      '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
+        '<span class="sp"></span><span class="bt">行程體檢</span></div>' +
+      '<div class="day-top"><div class="dn">出發前</div><h3>行程體檢</h3>' +
+        '<div class="theme">查座標、時間、行唔行得切、仲欠咩</div></div>' +
+      (findings.length
+        ? '<div class="cusum">' +
+            (c.bad ? '<span class="cupill bad">' + c.bad + ' 要睇下</span>' : '') +
+            (c.warn ? '<span class="cupill warn">' + c.warn + ' 注意</span>' : '') +
+            (c.info ? '<span class="cupill info">' + c.info + ' 資料</span>' : '') +
+          '</div>'
+        : '') +
+      body +
+      '<p class="legend">撳一下就會跳去嗰個點。「資料」嗰啲唔一定要改，' +
+        '淨係話你知有啲功能未開到。</p>' +
+    '</div></div>';
+  }
+
+  function checkupCardHTML(trip) {
+    var c = Checkup.counts(Checkup.run(trip));
+    var sub = c.total
+      ? (c.bad ? c.bad + ' 個要睇下 · ' : '') + (c.warn ? c.warn + ' 個注意' : (c.info + ' 個資料'))
+      : '睇落冇問題';
+    return '<button class="dcard checkup' + (c.bad ? ' hasbad' : '') + '" data-act="checkup">' +
+      '<div class="num"><b>' + (c.total || '✓') + '</b>' + (c.total ? '<small>項</small>' : '') + '</div>' +
+      '<div class="txt"><div class="d">出發前</div><div class="t">行程體檢</div>' +
+      '<div class="s">' + esc(sub) + '</div></div><div class="arrow">›</div></button>';
   }
 
   /* --- search ---------------------------------------------------
@@ -649,7 +735,8 @@
       t.days.map(function (d, i) { return dayHTML(t, d, i); }).join('') +
       foodHTML(t) +
       checklistHTML(t) +
-      searchHTML(t);
+      searchHTML(t) +
+      checkupHTML(t);
   }
 
   /* Repaint just the counters after a tick, so the page does not rebuild. */
