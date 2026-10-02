@@ -174,10 +174,51 @@
     U.download(name, JSON.stringify(t, null, 2));
   }
 
+  /* Pull the JSON out of whatever an assistant actually produced. Asked
+     for "only JSON", models still routinely wrap it in a ```json fence or
+     top-and-tail it with a sentence, and making someone hand-trim that on
+     a phone is a poor welcome. Anything beyond this is a genuine error
+     and gets reported rather than guessed at. */
+  function extractJSON(text) {
+    var raw = String(text == null ? '' : text).trim();
+    if (!raw) throw new Error('冇嘢喺度');
+
+    /* Strip a fenced block, with or without a language tag. */
+    var fence = /^```[a-zA-Z]*\s*\n([\s\S]*?)\n?```\s*$/.exec(raw);
+    if (fence) raw = fence[1].trim();
+
+    try { return JSON.parse(raw); } catch (e) { /* fall through */ }
+
+    /* Scan for the first balanced { } or [ ] at the top level, ignoring
+       braces that live inside strings. */
+    var open = raw.search(/[{[]/);
+    if (open === -1) throw new Error('搵唔到 JSON — 睇落唔似係行程資料');
+
+    var start = raw[open];
+    var close = start === '{' ? '}' : ']';
+    var depth = 0, inStr = false, esc = false;
+
+    for (var i = open; i < raw.length; i++) {
+      var c = raw[i];
+      if (esc) { esc = false; continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (c === '"') { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (c === start) depth++;
+      else if (c === close) {
+        depth--;
+        if (depth === 0) {
+          return JSON.parse(raw.slice(open, i + 1));
+        }
+      }
+    }
+    throw new Error('JSON 似乎斷咗 —— 可能 copy 漏咗結尾');
+  }
+
   /* Import always creates a new trip rather than overwriting an existing
      one — losing a trip to a re-import would be the worse surprise. */
   function importText(text) {
-    var parsed = JSON.parse(text);
+    var parsed = extractJSON(text);
     var incoming = Array.isArray(parsed) ? parsed : [parsed];
     var saved = [];
     incoming.forEach(function (raw) {
@@ -195,6 +236,6 @@
     all: all, get: get, save: save, remove: remove, duplicate: duplicate,
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
     setDone: setDone, setNote: setNote, clearProgress: clearProgress, migrateUids: migrateUids,
-    exportTrip: exportTrip, importText: importText
+    exportTrip: exportTrip, importText: importText, extractJSON: extractJSON
   };
 })(window);

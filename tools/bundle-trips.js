@@ -39,6 +39,28 @@ const banner = `/* GENERATED FILE — do not edit by hand.
 fs.writeFileSync(out, banner + 'window.BUILTIN_TRIPS = ' + JSON.stringify(trips, null, 2) + ';\n');
 
 console.log(`✓ bundled ${trips.length} trip(s) into data/builtin.js`);
+
+/* The AI prompt lives in AI-PROMPT.md so it can be read on GitHub, and is
+   mirrored into a JS constant so the in-app copy button works offline.
+   One source, generated copy — same arrangement as the trips above. */
+const promptMd = path.join(__dirname, '..', 'AI-PROMPT.md');
+const promptJs = path.join(__dirname, '..', 'assets', 'js', 'aiprompt.js');
+if (fs.existsSync(promptMd)) {
+  const md = fs.readFileSync(promptMd, 'utf8');
+  const parts = md.split('\n---\n');
+  if (parts.length < 2) {
+    console.error('✗ AI-PROMPT.md: expected a --- separator before the prompt body');
+    process.exit(1);
+  }
+  const body = parts.slice(1).join('\n---\n').trim();
+  fs.writeFileSync(promptJs,
+    '/* GENERATED FILE — do not edit by hand.\n' +
+    ' * Source: AI-PROMPT.md\n' +
+    ' * Rebuild: node tools/bundle-trips.js\n' +
+    ' */\n' +
+    'window.AI_PROMPT = ' + JSON.stringify(body) + ';\n');
+  console.log(`✓ mirrored AI-PROMPT.md (${body.length} chars) into assets/js/aiprompt.js`);
+}
 trips.forEach((t, i) => {
   const stops = (t.days || []).reduce((n, d) => n + (d.stops || []).length, 0);
   console.log(`   · ${files[i]} — ${t.title} (${(t.days || []).length} days, ${stops} stops)`);

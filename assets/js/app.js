@@ -566,6 +566,69 @@
     }
   }
 
+  /* --- paste an AI-written trip ------------------------------------- */
+
+  function togglePaste(show) {
+    var panel = U.el('paste-panel');
+    if (!panel) return;
+    panel.hidden = !show;
+    if (show) {
+      U.el('paste-err').hidden = true;
+      setTimeout(function () {
+        var box = U.el('paste-box');
+        if (box) box.focus();
+      }, 60);
+      panel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+  }
+
+  function copyPrompt() {
+    var text = global.AI_PROMPT || '';
+    if (!text) { U.toast('搵唔到提示內容', true); return; }
+
+    function fallback() {
+      /* clipboard API needs a secure context and permission; a hidden
+         textarea + execCommand still works where it does not. */
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      U.toast(ok ? 'copy 咗，貼落 AI 度啦 ✓' : 'copy 唔到，試下手動揀', !ok);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(function () { U.toast('copy 咗，貼落 AI 度啦 ✓'); })
+        .catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function importPasted() {
+    var box = U.el('paste-box'), err = U.el('paste-err');
+    if (!box) return;
+    err.hidden = true;
+    try {
+      var saved = Store.importText(box.value);
+      box.value = '';
+      togglePaste(false);
+      renderLibrary();
+      U.toast('匯入咗 ' + saved.length + ' 個行程 ✓');
+      /* Straight into the new trip — the point was to see it. */
+      if (saved.length === 1) go('#/trip/' + encodeURIComponent(saved[0].id));
+    } catch (ex) {
+      err.hidden = false;
+      err.textContent = ex.message + '\n\n貼成段嘢落嚟都得，前言同 ``` 會自動略過。';
+    }
+  }
+
   /* --- boot ------------------------------------------------------ */
 
   function init() {
@@ -585,6 +648,13 @@
       readFiles(fileInput.files);
       fileInput.value = '';
     });
+
+    U.el('btn-paste').addEventListener('click', function () {
+      togglePaste(U.el('paste-panel').hidden);
+    });
+    U.el('btn-copy-prompt').addEventListener('click', copyPrompt);
+    U.el('btn-paste-go').addEventListener('click', importPasted);
+    U.el('btn-paste-cancel').addEventListener('click', function () { togglePaste(false); });
 
     U.el('btn-restore-samples').addEventListener('click', function () {
       var n = Store.restoreSamples();

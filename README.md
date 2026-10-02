@@ -14,6 +14,7 @@
 | ✅ **打卡** | 去咗嘅景點／餐廳撳一下，日程頁同總清單一齊更新 |
 | 📷 **相片 · 筆記** | 每個點加相同寫低當日感想，變成旅行日記 |
 | 🔍 **搵嘢** | 一個搜尋格搵晒全程景點、餐廳、描述同筆記 |
+| 🤖 **AI 整行程** | copy 一段提示俾 AI，佢吐返嘅嘢直接貼落 app |
 | ✈️ **真離線** | 冇網都開到 app、睇到行程；地圖可以預先下載 |
 | 🗂️ **行程書架** | 所有行程一覽，未出發 / 進行中 / 已完成自動標示 |
 | ✏️ **表格編輯** | 喺 app 入面直接填，唔使掂 code |
@@ -66,7 +67,20 @@
 
 撳「⬆️ 匯入檔案」揀檔案。格式同 export 出嚟嘅一模一樣，所以最易嘅做法係：export 一個現有行程 → 改內容 → 再 import。
 
-**方法三 —— 放入 repo（⚠️ 淨係放唔怕人睇嘅行程）**
+**方法三 —— 叫 AI 幫你計劃（最快）**
+
+1. 撳「📋 貼上 AI 行程」→「📋 copy 提示俾 AI」
+2. 去 Claude / ChatGPT / Gemini，貼上，最後一行寫你想去邊、幾時去、鍾意咩
+3. 將 AI 覆你嘅嘢**成段** copy 返落個格度 → 撳「匯入」
+
+前言、結尾、` ``` ` 都唔使自己剪走，app 會自動抽返個 JSON 出嚟。
+提示本身喺 [`AI-PROMPT.md`](AI-PROMPT.md)，想改可以直接改嗰個檔
+（記得行 `node tools/bundle-trips.js`）。
+
+> ⚠️ AI 有時會作座標。匯入之後**撳幾個 🧭 導航掣撳下**，
+> 睇下去唔去到啱嘅地方；錯咗就入去編輯改 `lat` / `lng`。
+
+**方法四 —— 放入 repo（⚠️ 淨係放唔怕人睇嘅行程）**
 
 放個 `.json` 落 `data/trips/`，然後：
 
@@ -74,7 +88,8 @@
 node tools/bundle-trips.js
 ```
 
-呢個 script 會將 `data/trips/*.json` 打包做 `data/builtin.js`，任何人第一次開 app 都會自動見到。
+呢個 script 會將 `data/trips/*.json` 打包做 `data/builtin.js`，
+同時將 `AI-PROMPT.md` 打包做 `assets/js/aiprompt.js`（app 入面個 copy 掣用）。
 
 > ⚠️ 加咗新 `.json` 記得行呢句，唔係 app 唔會見到。
 >
@@ -328,6 +343,7 @@ const VERSION = 'v2';   // v1 -> v2
 ```
 index.html                  app 外殼（三個 view：書架 / 行程 / 編輯）
 manifest.webmanifest        加入主畫面用
+AI-PROMPT.md                叫 AI 整行程嘅提示（source of truth）
 sw.js                       service worker（離線 cache）
 assets/
   css/app.css               全部樣式（design tokens 由原本份 Málaga HTML 抽出嚟）
@@ -342,6 +358,7 @@ assets/
     offline.js              service worker 註冊、離線狀態、地圖 tile 預載
     photos.js               相片 IndexedDB 儲存（自動縮圖）
     dragsort.js             拖拉換位（pointer events，手機都用得）
+    aiprompt.js             AI 提示（**generated**，由 AI-PROMPT.md 嚟）
     render.js               行程 → HTML
     editor.js               表格編輯器（path 綁定 + 可增刪重排）
     app.js                  hash router + 書架

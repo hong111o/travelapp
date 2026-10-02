@@ -451,3 +451,11 @@ footer .heart{color:var(--amber)}
   box-shadow:0 8px 22px rgba(14,77,100,.22);border-color:var(--teal)}
 body.dragging-now{user-select:none;-webkit-user-select:none;cursor:grabbing}
 body.dragging-now .rep{transition:transform .14s ease}
+
+/* ============================================================
+   PASTE AN AI-WRITTEN TRIP
+   ============================================================ */
+.pastecard h2{margin-bottom:4px}
+.pasterow{display:flex;gap:9px;margin-top:11px}
+.pasterow .btn{flex:1}
+.pastecard .jsonarea::placeholder{color:var(--ink-soft);opacity:.7}

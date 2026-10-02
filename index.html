@@ -36,7 +36,27 @@
     <div class="libactions">
       <button class="btn btn-primary" id="btn-new">＋ 新行程</button>
       <button class="btn" id="btn-import">⬆️ 匯入檔案</button>
+      <button class="btn" id="btn-paste">📋 貼上 AI 行程</button>
       <input type="file" id="file-import" accept=".json,application/json" hidden multiple>
+    </div>
+
+    <div class="card pastecard" id="paste-panel" hidden>
+      <h2>📋 用 AI 整行程</h2>
+      <p class="tinynote" style="margin-top:0">
+        AI 預設會寫一大段文字，app 讀唔明。撳下面個掣 copy 一段提示俾 AI，
+        佢就會吐返可以直接貼落嚟嘅資料。
+      </p>
+      <button class="btn btn-amber" id="btn-copy-prompt" style="width:100%;margin-top:10px">
+        📋 copy 提示俾 AI
+      </button>
+      <textarea id="paste-box" class="jsonarea" style="min-height:34vh;margin-top:11px"
+        spellcheck="false" placeholder="跟住喺度貼返 AI 俾你嘅嘢…
+（有 ``` 或者前言都唔怕，會自動抽返出嚟）"></textarea>
+      <div class="jsonerr" id="paste-err" hidden></div>
+      <div class="pasterow">
+        <button class="btn" id="btn-paste-cancel">取消</button>
+        <button class="btn btn-primary" id="btn-paste-go">匯入</button>
+      </div>
     </div>
     <div id="lib-list" class="daycards"></div>
     <div id="lib-empty" class="card empty" hidden>
@@ -60,6 +80,7 @@
 <script src="assets/js/schema.js"></script>
 <script src="assets/js/store.js"></script>
 <script src="data/builtin.js"></script>
+<script src="assets/js/aiprompt.js"></script>
 <script src="assets/js/widgets.js"></script>
 <script src="assets/js/offline.js"></script>
 <script src="assets/js/photos.js"></script>
