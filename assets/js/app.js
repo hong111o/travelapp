@@ -611,6 +611,13 @@
     }
   }
 
+  function downloadTemplate() {
+    var text = global.TRIP_TEMPLATE;
+    if (!text) { U.toast('搵唔到範本檔案', true); return; }
+    U.download('trip-template.json', text);
+    U.toast('下載咗 — send 俾 AI 叫佢填返');
+  }
+
   function importPasted() {
     var box = U.el('paste-box'), err = U.el('paste-err');
     if (!box) return;
@@ -653,6 +660,7 @@
       togglePaste(U.el('paste-panel').hidden);
     });
     U.el('btn-copy-prompt').addEventListener('click', copyPrompt);
+    U.el('btn-template').addEventListener('click', downloadTemplate);
     U.el('btn-paste-go').addEventListener('click', importPasted);
     U.el('btn-paste-cancel').addEventListener('click', function () { togglePaste(false); });
 

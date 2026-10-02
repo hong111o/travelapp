@@ -46,9 +46,14 @@
         AI 預設會寫一大段文字，app 讀唔明。撳下面個掣 copy 一段提示俾 AI，
         佢就會吐返可以直接貼落嚟嘅資料。
       </p>
-      <button class="btn btn-amber" id="btn-copy-prompt" style="width:100%;margin-top:10px">
-        📋 copy 提示俾 AI
-      </button>
+      <div class="pasterow" style="margin-top:10px">
+        <button class="btn btn-amber" id="btn-copy-prompt">📋 copy 提示</button>
+        <button class="btn" id="btn-template">⬇️ 空白範本</button>
+      </div>
+      <p class="tinynote">
+        想用對話嘅：撳「copy 提示」。想用檔案嘅：下載「空白範本」，
+        send 俾 AI 叫佢當問卷咁填返。
+      </p>
       <textarea id="paste-box" class="jsonarea" style="min-height:34vh;margin-top:11px"
         spellcheck="false" placeholder="跟住喺度貼返 AI 俾你嘅嘢…
 （有 ``` 或者前言都唔怕，會自動抽返出嚟）"></textarea>

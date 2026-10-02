@@ -75,6 +75,15 @@
    - **未傾過** → 貼完之後喺最尾寫低你想去邊、幾時去、鍾意咩
 3. 將 AI 覆你嘅嘢**成段** copy 返落 app 個格度 → 撳「匯入」
 
+**或者用檔案（當份問卷填）：**
+
+1. 撳「📋 貼上 AI 行程」→「⬇️ 空白範本」，下載 `trip-template.json`
+2. 將個檔案 send 俾 AI，叫佢「**當份問卷咁填返，填完淨係輸出個 JSON**」
+3. AI 覆你個檔案就用「⬆️ 匯入檔案」，覆你一段文字就用「貼上」—— 兩樣都得
+
+範本入面已經寫好說明同一個填好嘅例子，`_說明` / `_範例` 嗰兩個欄位
+就算 AI 冇刪走，app 都會自動忽略。範本喺 [`trip-template.json`](trip-template.json)。
+
 > AI **唔會自己送去 app**。佢淨係喺對話度覆一段文字，你 copy 返落 app 先入到去。
 > 所以 app 由頭到尾都唔使上網、唔使登入，行程亦唔會離開你部機。
 
@@ -94,7 +103,8 @@ node tools/bundle-trips.js
 ```
 
 呢個 script 會將 `data/trips/*.json` 打包做 `data/builtin.js`，
-同時將 `AI-PROMPT.md` 打包做 `assets/js/aiprompt.js`（app 入面個 copy 掣用）。
+同時將 `AI-PROMPT.md` 同 `trip-template.json` 打包做 `assets/js/aiprompt.js`
+（app 入面個 copy 掣同下載掣用，離線都用得）。
 
 > ⚠️ 加咗新 `.json` 記得行呢句，唔係 app 唔會見到。
 >
@@ -349,6 +359,7 @@ const VERSION = 'v2';   // v1 -> v2
 index.html                  app 外殼（三個 view：書架 / 行程 / 編輯）
 manifest.webmanifest        加入主畫面用
 AI-PROMPT.md                叫 AI 整行程嘅提示（source of truth）
+trip-template.json          空白行程範本，send 俾 AI 當問卷填（source of truth）
 sw.js                       service worker（離線 cache）
 assets/
   css/app.css               全部樣式（design tokens 由原本份 Málaga HTML 抽出嚟）
@@ -363,7 +374,7 @@ assets/
     offline.js              service worker 註冊、離線狀態、地圖 tile 預載
     photos.js               相片 IndexedDB 儲存（自動縮圖）
     dragsort.js             拖拉換位（pointer events，手機都用得）
-    aiprompt.js             AI 提示（**generated**，由 AI-PROMPT.md 嚟）
+    aiprompt.js             AI 提示 + 空白範本（**generated**，由上面兩個檔案嚟）
     render.js               行程 → HTML
     editor.js               表格編輯器（path 綁定 + 可增刪重排）
     app.js                  hash router + 書架

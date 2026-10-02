@@ -1,0 +1,109 @@
+{
+  "_說明": [
+    "呢個係「行程本」app 嘅行程範本，當份問卷咁填就得。",
+    "1. 每個空白欄位填返我哋傾好嘅內容；傾唔到／唔適用嘅：文字留 \"\"，數字留 null。",
+    "2. days / infoCards / todos / links / food 入面each 都放咗一行空白樣本，",
+    "   照住複製多幾行，用剩嘅空白行請刪走。",
+    "3. 填完淨係輸出成個 JSON，唔好有開場白、解釋，唔好用 ``` 包住。",
+    "4. 千祈唔好作假座標。唔肯定個地方喺邊，lat / lng 就寫 null。",
+    "5. _說明 同 _範例 呢兩個欄位可以刪走；唔刪都冇所謂，app 會自動忽略。"
+  ],
+
+  "_範例": {
+    "說明": "呢度係填好之後應該長成點，照抄個樣就得，唔好照抄內容。",
+    "day": {
+      "id": "d1",
+      "date": "2027-03-12",
+      "title": "舊城 · 大教堂",
+      "theme": "落機 → 舊城 → 食 tapas",
+      "drawRoute": true,
+      "mapNote": "全日行得晒，上山斜，著對好行嘅鞋。",
+      "stops": [
+        {
+          "time": "~11:00",
+          "title": "**Catedral de Sevilla**",
+          "star": true,
+          "desc": "世界最大哥德式教堂，上 **Giralda** 鐘樓望全城。",
+          "backup": "落雨就改去 Museo de Bellas Artes",
+          "pin": "早上人少啲",
+          "mapQuery": "Catedral de Sevilla",
+          "mapLabel": "大教堂",
+          "lat": 37.3859,
+          "lng": -5.9933
+        }
+      ]
+    },
+    "infoCard": {
+      "icon": "🚇",
+      "title": "交通小抄",
+      "mapQuery": "",
+      "rows": [
+        { "k": "機場入城", "v": "EA 巴士 ~35 分鐘", "sub": "€4，去 Plaza de Armas" }
+      ]
+    },
+    "todo": { "level": "now", "text": "**Real Alcázar** — 一定要網上訂飛，現場成日賣晒" },
+    "link": { "icon": "🚨", "label": "緊急電話 112", "url": "tel:112" },
+    "foodQuick": { "when": "D1 午餐", "name": "Bodega Santa Cruz", "star": true, "note": "站著食 tapas，本地人多" },
+    "foodPick": {
+      "icon": "🍤",
+      "title": "炸魚 · **Freiduría Puerta de la Carne**",
+      "desc": "傳統炸魚店，紙袋裝住拎走食。",
+      "mapQuery": "Freiduria Puerta de la Carne Sevilla"
+    }
+  },
+
+  "title": "",
+  "kicker": "",
+  "subtitle": "",
+  "startDate": "",
+  "endDate": "",
+
+  "place": { "name": "", "lat": null, "lng": null },
+  "currency": { "base": "", "quote": "" },
+  "departure": { "datetime": "", "utcOffset": "", "note": "" },
+
+  "infoCards": [
+    { "icon": "", "title": "", "mapQuery": "", "rows": [ { "k": "", "v": "", "sub": "" } ] }
+  ],
+
+  "todos": [
+    { "level": "soon", "text": "" }
+  ],
+
+  "links": [
+    { "icon": "", "label": "", "url": "" }
+  ],
+
+  "days": [
+    {
+      "id": "d1",
+      "date": "",
+      "title": "",
+      "theme": "",
+      "drawRoute": true,
+      "mapNote": "",
+      "stops": [
+        {
+          "time": "",
+          "title": "",
+          "star": false,
+          "desc": "",
+          "backup": "",
+          "pin": "",
+          "mapQuery": "",
+          "mapLabel": "",
+          "lat": null,
+          "lng": null
+        }
+      ]
+    }
+  ],
+
+  "food": {
+    "quick": [ { "when": "", "name": "", "star": false, "note": "" } ],
+    "picks": [ { "icon": "", "title": "", "desc": "", "mapQuery": "" } ],
+    "legend": ""
+  },
+
+  "notes": ""
+}

@@ -53,13 +53,30 @@ if (fs.existsSync(promptMd)) {
     process.exit(1);
   }
   const body = parts.slice(1).join('\n---\n').trim();
+  /* The blank template rides along in the same generated file so the
+     download button works with no network. */
+  const templatePath = path.join(__dirname, '..', 'trip-template.json');
+  let template = null;
+  if (fs.existsSync(templatePath)) {
+    const text = fs.readFileSync(templatePath, 'utf8');
+    try {
+      JSON.parse(text);
+    } catch (err) {
+      console.error('✗ trip-template.json is not valid JSON:', err.message);
+      process.exit(1);
+    }
+    template = text;
+  }
+
   fs.writeFileSync(promptJs,
     '/* GENERATED FILE — do not edit by hand.\n' +
-    ' * Source: AI-PROMPT.md\n' +
+    ' * Sources: AI-PROMPT.md, trip-template.json\n' +
     ' * Rebuild: node tools/bundle-trips.js\n' +
     ' */\n' +
-    'window.AI_PROMPT = ' + JSON.stringify(body) + ';\n');
+    'window.AI_PROMPT = ' + JSON.stringify(body) + ';\n' +
+    'window.TRIP_TEMPLATE = ' + JSON.stringify(template) + ';\n');
   console.log(`✓ mirrored AI-PROMPT.md (${body.length} chars) into assets/js/aiprompt.js`);
+  if (template) console.log(`✓ mirrored trip-template.json (${template.length} chars) too`);
 }
 trips.forEach((t, i) => {
   const stops = (t.days || []).reduce((n, d) => n + (d.stops || []).length, 0);
