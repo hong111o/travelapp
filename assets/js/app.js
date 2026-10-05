@@ -401,6 +401,51 @@
     else location.hash = target;
   }
 
+  /* --- share and print ------------------------------------------------ */
+
+  function shareTrip(btn) {
+    if (!current) return;
+    btn.disabled = true;
+    var was = btn.textContent;
+    btn.textContent = '整緊…';
+    Share.download(current).then(function (res) {
+      btn.disabled = false;
+      btn.textContent = was;
+      U.toast('整好咗 ' + res.name + '（' + Math.round(res.bytes / 1024) + ' KB）');
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = was;
+      console.warn('[share]', err);
+      U.toast('整唔到個檔案：' + err.message, true);
+    });
+  }
+
+  /* Printing wants the whole trip at once, not whichever page you happen
+     to be on, so every day is unfolded for the duration of the dialog. */
+  function printTrip() {
+    document.body.classList.add('printing');
+    var subs = document.querySelectorAll('#view-trip .subview');
+    var restore = [];
+    for (var i = 0; i < subs.length; i++) {
+      restore.push([subs[i], subs[i].style.display]);
+      var sub = subs[i].getAttribute('data-sub');
+      /* Days and food are the trip; the tools are not worth paper. */
+      var wanted = sub === 'home' || sub === 'food' || /^d/.test(sub);
+      subs[i].style.display = wanted ? 'block' : 'none';
+    }
+
+    function undo() {
+      document.body.classList.remove('printing');
+      restore.forEach(function (pair) { pair[0].style.display = pair[1]; });
+      window.removeEventListener('afterprint', undo);
+    }
+    window.addEventListener('afterprint', undo);
+    /* Safari on iOS never fires afterprint, so fall back to a timer. */
+    setTimeout(undo, 60000);
+
+    setTimeout(function () { window.print(); }, 60);
+  }
+
   /* --- search --------------------------------------------------------- */
 
   var searchRows = null;
@@ -633,6 +678,8 @@
     else if (act === 'search') { go('#/trip/' + encodeURIComponent(current.id) + '/search'); }
     else if (act === 'addfind') { e.preventDefault(); openFindSheet(btn.getAttribute('data-day')); }
     else if (act === 'checkup') { go('#/trip/' + encodeURIComponent(current.id) + '/checkup'); }
+    else if (act === 'share') { e.preventDefault(); shareTrip(btn); }
+    else if (act === 'print') { e.preventDefault(); printTrip(); }
     else if (act === 'goto') {
       e.preventDefault();
       gotoPlace(btn.getAttribute('data-sub'), btn.getAttribute('data-uid'));

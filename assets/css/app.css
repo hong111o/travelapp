@@ -541,3 +541,51 @@ body.dragging-now .rep{transition:transform .14s ease}
 
 /* map-link paste button in the editor */
 .maplinkb{width:100%;margin-top:11px;border-style:dashed;color:var(--teal)}
+
+/* ============================================================
+   PRINT — the trip on paper, as a backup for when the phone dies
+   ============================================================ */
+@media print {
+  @page { margin: 14mm 12mm; }
+
+  body { background: #fff; color: #000; font-size: 10.5pt }
+  .wrap { max-width: none; padding: 0 }
+
+  /* Anything that only makes sense on a screen */
+  .backbar, .hero-top, .btn, .tick, .jr-acts, .findrow, .arrow,
+  .daycards, .linkrow, .toast, .offbar, .sheet, .lightbox,
+  #offline-card, #share-card, #paste-panel, .ckfilters, .cusum,
+  .daymap, .maphint, .leaflet-container, .fxgrid, .wxcard,
+  .ed-head, .savebar, .findbtn { display: none !important }
+
+  /* Every day on the page, in order, each starting a fresh sheet */
+  .subview { display: block !important; page-break-before: always }
+  .subview[data-sub="home"] { page-break-before: avoid }
+
+  .hero { background: none !important; color: #000; padding: 0 0 10pt }
+  .hero h1 { font-size: 26pt; line-height: 1.1 }
+  .hero .kicker, .hero .dates, .hero .sub { color: #333 }
+  .wave { display: none }
+
+  .card, .stops, .ckgroup { border: 1px solid #bbb; border-radius: 0;
+    box-shadow: none; break-inside: avoid; margin-top: 8pt }
+  .card.cd, .todaycard { background: none !important; color: #000; border: 1px solid #bbb }
+  .cd-label, .cd-sub, .tw-ttl, .tw-l, .tw-n { color: #000 }
+
+  .day-top { background: none !important; color: #000; border-bottom: 2pt solid #000;
+    border-radius: 0; padding: 0 0 6pt; margin-top: 0 }
+  .day-top h3 { font-size: 16pt }
+  .day-top .dn, .day-top .theme { color: #333 }
+
+  .stop { break-inside: avoid; page-break-inside: avoid }
+  .stop.done .time, .stop.done h4, .stop.done p { opacity: 1 }
+  .stop.done h4 { text-decoration: none }
+  .gmap { display: none }
+  .leg { color: #555; margin-left: 73px }
+  .findbadge { border: 1px solid #000; background: none; color: #000 }
+  .jr-note { background: none; border-left: 2pt solid #999 }
+  .jr-photos { display: none }
+
+  a { color: #000; text-decoration: none }
+  footer { border-top: 1px solid #bbb; padding-top: 6pt }
+}

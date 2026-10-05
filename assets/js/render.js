@@ -16,8 +16,9 @@
     return '' +
       '<header class="hero">' +
         '<div class="hero-top">' +
-          '<button class="btn btn-sm" data-act="library">‹ 行程本</button>' +
-          '<button class="btn btn-sm" data-act="edit">✏️ 編輯</button>' +
+          (readOnly ? '' :
+            '<button class="btn btn-sm" data-act="library">‹ 行程本</button>' +
+            '<button class="btn btn-sm" data-act="edit">✏️ 編輯</button>') +
         '</div>' +
         '<div class="hero-inner">' +
           (trip.kicker ? '<div class="kicker">' + esc(trip.kicker) + '</div>' : '') +
@@ -82,7 +83,8 @@
       '</div>' + body +
       '<div class="tw-btns">' +
         '<button class="btn btn-sm tw-go" data-act="day" data-day="' + esc(day.id) + '">睇今日行程 ›</button>' +
-        '<button class="btn btn-sm tw-go" data-act="addfind" data-day="' + esc(day.id) + '">＋ 即興發現</button>' +
+        (readOnly ? '' :
+          '<button class="btn btn-sm tw-go" data-act="addfind" data-day="' + esc(day.id) + '">＋ 即興發現</button>') +
       '</div>';
   }
 
@@ -213,7 +215,7 @@
     /* A search box over three stops is just a slower way to scroll, so it
        only appears once a trip is big enough to lose things in. */
     var searchable = searchIndex(trip).length;
-    if (searchable > 5) {
+    if (searchable > 5 && !readOnly) {
       cards += '<button class="dcard search" data-act="search">' +
         '<div class="num"><b>🔍</b></div>' +
         '<div class="txt"><div class="d">全程</div><div class="t">搵嘢</div>' +
@@ -233,7 +235,27 @@
 
   /* Offer the tile download only when the trip actually has maps to cache,
      and only where a service worker can exist (not on file://). */
+  /* Sending the trip on, and getting it onto paper. Both are about the
+     finished plan, so they sit together near the foot of the home page. */
+  function shareHTML(trip) {
+    if (readOnly) return '';
+    return '<div class="card" id="share-card">' +
+      '<h2>📤 分享 · 列印</h2>' +
+      '<p class="tinynote" style="margin-top:0">' +
+        'send 俾同行嘅人，或者印一份袋住做後備。' +
+      '</p>' +
+      '<div class="pasterow">' +
+        '<button class="btn" data-act="share">📤 存成一個檔案</button>' +
+        '<button class="btn" data-act="print">🖨️ 列印 / PDF</button>' +
+      '</div>' +
+      '<p class="tinynote">' +
+        '檔案入面已經連埋 app 本身，對方唔使裝咩，撳開就睇到成個行程（相片唔會跟住走）。' +
+      '</p>' +
+    '</div>';
+  }
+
   function offlineHTML(trip) {
+    if (readOnly) return '';
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return '';
     var hasPoints = trip.days.some(function (d) { return Widgets.pointsFor(d).length; });
     if (!hasPoints) return '';
@@ -286,6 +308,7 @@
         dayCardsHTML(trip) +
         linksHTML(trip) +
         todosHTML(trip) +
+        shareHTML(trip) +
         offlineHTML(trip) +
         (trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
           rich(trip.notes) + '</p></div>' : '') +
@@ -299,12 +322,17 @@
      something has been ticked without threading the trip through every call. */
   var activeTrip = null;
 
+  /* Read-only is for the single-file copy you send someone: the same
+     renderer, with everything that writes to a device they do not own
+     left out. */
+  var readOnly = false;
+
   function isDone(uid) {
     return !!(activeTrip && activeTrip.progress && activeTrip.progress[uid]);
   }
 
   function tickBtn(uid) {
-    if (!uid) return '';
+    if (!uid || readOnly) return '';
     var done = isDone(uid);
     return '<button class="tick' + (done ? ' on' : '') + '" data-act="tick" data-uid="' + esc(uid) +
       '" aria-pressed="' + (done ? 'true' : 'false') +
@@ -322,6 +350,13 @@
   function journalHTML(uid) {
     if (!uid) return '';
     var note = noteOf(uid);
+    /* A shared copy keeps the notes, which are part of the story, but not
+       the buttons that would write to the reader's own device. */
+    if (readOnly) {
+      return note
+        ? '<div class="jr"><div class="jr-note">' + rich(note) + '</div></div>'
+        : '';
+    }
     return '<div class="jr" data-jr="' + esc(uid) + '">' +
       '<div class="jr-photos" data-photos="' + esc(uid) + '"></div>' +
       (note ? '<div class="jr-note" data-note="' + esc(uid) + '">' + rich(note) + '</div>' : '') +
@@ -401,10 +436,10 @@
           }
           return html;
         }).join('') +
-        '<div class="findrow">' +
+        (readOnly ? '' : '<div class="findrow">' +
           '<button class="btn findbtn" data-act="addfind" data-day="' + esc(day.id) + '">' +
             '＋ 記低一個即興發現</button>' +
-        '</div>' +
+        '</div>') +
       '</div>' +
       map +
       '</div></div>';
@@ -472,6 +507,7 @@
   }
 
   function checklistHTML(trip) {
+    if (readOnly) return '';
     var items = checkItems(trip);
     if (!items.length) return '';
 
@@ -513,6 +549,7 @@
 
   /* Nav card on the itinerary home. */
   function checkCardHTML(trip) {
+    if (readOnly) return '';
     var c = checkCounts(trip);
     if (!c.total) return '';
     return '<button class="dcard check" data-act="check">' +
@@ -530,6 +567,7 @@
   };
 
   function checkupHTML(trip) {
+    if (readOnly) return '';
     var findings = Checkup.run(trip);
     var c = Checkup.counts(findings);
 
@@ -572,6 +610,7 @@
   }
 
   function checkupCardHTML(trip) {
+    if (readOnly) return '';
     var c = Checkup.counts(Checkup.run(trip));
     var sub = c.total
       ? (c.bad ? c.bad + ' 個要睇下 · ' : '') + (c.warn ? c.warn + ' 個注意' : (c.info + ' 個資料'))
@@ -588,6 +627,7 @@
      built live in App.runSearch; this only lays out the page. */
 
   function searchHTML(trip) {
+    if (readOnly) return '';
     if (searchIndex(trip).length <= 5) return '';
     return '<div class="subview" data-sub="search"><div class="wrap">' +
       '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
@@ -772,6 +812,7 @@
   global.Render = {
     trip: trip, refreshToday: refreshToday, applyDayProgress: applyDayProgress,
     refreshJournal: refreshJournal, journalHTML: journalHTML,
+    setReadOnly: function (v) { readOnly = !!v; },
     searchIndex: searchIndex, searchResultHTML: searchResultHTML,
     findSheetHTML: findSheetHTML,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
