@@ -538,3 +538,6 @@ body.dragging-now .rep{transition:transform .14s ease}
   display:flex;align-items:center;justify-content:center}
 .dcard.checkup .num{background:linear-gradient(150deg,#4a8f7b,#6aae91)}
 .dcard.checkup.hasbad .num{background:linear-gradient(150deg,#C0392B,#d9614f)}
+
+/* map-link paste button in the editor */
+.maplinkb{width:100%;margin-top:11px;border-style:dashed;color:var(--teal)}

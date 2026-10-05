@@ -717,8 +717,11 @@
       '<div class="f"><label>想講啲咩 <span class="opt">（可留空）</span></label>' +
         '<textarea id="find-note" placeholder="好唔好食？值唔值得再嚟？"></textarea></div>' +
 
-      '<button class="btn" id="find-gps" style="width:100%">📍 用我而家嘅位置</button>' +
-      '<p class="tinynote" id="find-gps-note">攞到位置就會喺地圖見到呢個點。</p>' +
+      '<div class="pasterow">' +
+        '<button class="btn" id="find-gps">📍 用我而家位置</button>' +
+        '<button class="btn" id="find-link">📋 貼地圖連結</button>' +
+      '</div>' +
+      '<p class="tinynote" id="find-gps-note">攞到位置就會喺地圖見到呢個點。兩個方法都得。</p>' +
 
       '<div class="sheet-acts">' +
         '<button class="btn" data-find="close">取消</button>' +

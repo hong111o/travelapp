@@ -318,6 +318,7 @@
     });
 
     U.el('find-gps').addEventListener('click', locateForFind);
+    U.el('find-link').addEventListener('click', linkForFind);
     U.el('find-save').addEventListener('click', saveFind);
   }
 
@@ -346,6 +347,21 @@
         ? '冇咗定位權限 —— 照記低都得，淨係唔會出現喺地圖。'
         : '攞唔到位置（室內成日咁）—— 照記低都得。';
     }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  }
+
+  function linkForFind() {
+    var text = prompt('貼 Google Maps 連結（或者一對經緯度）：', '');
+    if (text === null) return;
+
+    var got;
+    try { got = MapLink.parse(text); }
+    catch (ex) { U.el('find-gps-note').textContent = ex.message; return; }
+
+    findCoords = { lat: got.lat, lng: got.lng };
+    U.el('find-link').textContent = '📋 連結已讀 ✓';
+    U.el('find-gps-note').textContent = '攞到座標喇。';
+    var name = U.el('find-name');
+    if (got.name && name && !name.value.trim()) name.value = got.name;
   }
 
   function saveFind() {

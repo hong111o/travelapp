@@ -142,6 +142,8 @@
       input('小提示 📍', p + '.pin', { optional: true, placeholder: '週末好逼，早少少去' }) +
       input('導航搜尋字', p + '.mapQuery', { optional: true, placeholder: 'Time Out Market Lisboa',
         hint: '填咗會出「🧭 導航」掣，直接開 Google Maps 搜呢個字。' }) +
+      '<button class="btn btn-sm maplinkb" data-maplink="' + esc(p) + '">' +
+        '📋 貼 Google Maps 連結自動填</button>' +
       '<div class="frow">' +
         input('lat', p + '.lat', { type: 'number', step: 'any', inputmode: 'decimal' }) +
         input('lng', p + '.lng', { type: 'number', step: 'any', inputmode: 'decimal' }) +
@@ -478,10 +480,13 @@
   }
 
   function onClick(e) {
-    var t = e.target.closest ? e.target.closest('[data-op],[data-tab],[data-act],#ed-json-apply') : null;
+    var t = e.target.closest ? e.target.closest('[data-op],[data-tab],[data-act],[data-maplink],#ed-json-apply') : null;
     if (!t || !U.el('view-editor').contains(t)) return;
 
     if (t.id === 'ed-json-apply') { e.preventDefault(); applyJSON(); return; }
+
+    var mapPath = t.getAttribute('data-maplink');
+    if (mapPath) { e.preventDefault(); fillFromMapLink(mapPath); return; }
 
     var tab = t.getAttribute('data-tab');
     if (tab) { e.preventDefault(); showTab(tab); window.scrollTo(0, 0); return; }
@@ -497,6 +502,37 @@
     if (act === 'save') { e.preventDefault(); save(); }
     else if (act === 'close') { e.preventDefault(); close(); }
     else if (act === 'export') { e.preventDefault(); Store.exportTrip(state.work); }
+  }
+
+  /* Paste a map link onto a stop. Fills what the link actually carries
+     and leaves everything else alone — a link with no name should not
+     blank out a title you already wrote. */
+  function fillFromMapLink(path) {
+    var text = prompt('貼 Google Maps 連結（或者一對經緯度）：', '');
+    if (text === null) return;
+
+    var got;
+    try { got = MapLink.parse(text); }
+    catch (ex) { U.toast(ex.message, true); return; }
+
+    U.setPath(state.work, path + '.lat', got.lat);
+    U.setPath(state.work, path + '.lng', got.lng);
+
+    var filled = ['座標'];
+    if (got.name) {
+      if (!U.getPath(state.work, path + '.title')) {
+        U.setPath(state.work, path + '.title', got.name);
+        filled.push('名稱');
+      }
+      if (!U.getPath(state.work, path + '.mapQuery')) {
+        U.setPath(state.work, path + '.mapQuery', got.name);
+        filled.push('導航');
+      }
+    }
+
+    rememberOpenDays();
+    renderBody();
+    U.toast('填咗' + filled.join('、') + ' ✓');
   }
 
   function applyJSON() {
