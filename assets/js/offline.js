@@ -16,17 +16,81 @@
 
   /* --- registration -------------------------------------------- */
 
+  /* Reload once when a new worker takes over, so a published change
+     actually reaches an installed app. Without this the browser decides
+     when to re-check sw.js, and a phone that never re-checks keeps
+     running last month's code while every new feature looks broken. */
+  var reloading = false;
+
+  function watchForUpdates(reg) {
+    if (!reg) return;
+
+    /* A page loaded before any worker existed is uncontrolled, and the
+       first controllerchange is just that worker claiming it — reloading
+       there would be a pointless flash. Every later one is a genuine
+       update and must reload, so the flag is set when the first claim
+       happens rather than read once at registration. */
+    var sawController = !!navigator.serviceWorker.controller;
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!sawController) { sawController = true; return; }
+      if (reloading) return;
+      reloading = true;
+      location.reload();
+    });
+
+    /* Ask now, and again whenever the app comes back to the foreground —
+       the moment someone reopens it from the home screen. */
+    var check = function () {
+      reg.update().catch(function (err) { console.warn('[offline] update check', err); });
+    };
+    check();
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') check();
+    });
+  }
+
   function register() {
     if (!('serviceWorker' in navigator)) return;
     /* file:// has no service worker; that is fine, the app still runs. */
     if (location.protocol === 'file:') return;
 
-    ready = navigator.serviceWorker.register('sw.js')
-      .then(function (reg) { return navigator.serviceWorker.ready.then(function () { return reg; }); })
+    /* updateViaCache:'none' is the whole point of the update check: without
+       it the browser answers reg.update() from its own HTTP cache, which
+       can hold sw.js for a day, and the app keeps running old code while
+       reporting itself up to date. */
+    ready = navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(function (reg) {
+        watchForUpdates(reg);
+        return navigator.serviceWorker.ready.then(function () { return reg; });
+      })
       .catch(function (err) {
         console.warn('[offline] service worker not registered', err);
         return null;
       });
+  }
+
+  /* The running version, read off the active cache rather than asked for,
+     so it reports what is actually serving the page. */
+  function version() {
+    if (!('caches' in window)) return Promise.resolve('');
+    return caches.keys().then(function (keys) {
+      var shell = keys.filter(function (k) { return k.indexOf('tripbook-shell-') === 0; })[0];
+      return shell ? shell.replace('tripbook-shell-', '') : '';
+    }).catch(function () { return ''; });
+  }
+
+  /* Manual "am I up to date?" for when the automatic check has not fired. */
+  function checkNow() {
+    if (!ready) return Promise.reject(new Error('\u96e2\u7dda\u529f\u80fd\u672a\u6e96\u5099\u597d'));
+    return ready.then(function (reg) {
+      if (!reg) throw new Error('\u96e2\u7dda\u529f\u80fd\u672a\u6e96\u5099\u597d');
+      return reg.update().then(function () {
+        /* A waiting worker means a new version is installed and ready;
+           activating it triggers the reload above. */
+        return !!(reg.waiting || reg.installing);
+      });
+    });
   }
 
   /* --- connection banner ---------------------------------------- */
@@ -170,7 +234,7 @@
   }
 
   global.Offline = {
-    init: init,
+    init: init, version: version, checkNow: checkNow,
     downloadMaps: downloadMaps,
     tileCount: tileCount,
     TILE_BUDGET: TILE_BUDGET

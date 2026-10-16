@@ -892,6 +892,31 @@
     U.el('btn-paste-go').addEventListener('click', importPasted);
     U.el('btn-paste-cancel').addEventListener('click', function () { togglePaste(false); });
 
+    Offline.version().then(function (v) {
+      var el = U.el('app-ver');
+      if (el && v) el.textContent = v;
+    });
+
+    U.el('btn-update').addEventListener('click', function (e) {
+      var btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = '檢查緊…';
+      Offline.checkNow().then(function (found) {
+        if (found) {
+          btn.textContent = '搵到新版，更新緊…';
+          /* The reload is triggered by the worker taking over. */
+        } else {
+          btn.disabled = false;
+          btn.textContent = '🔄 檢查更新';
+          U.toast('已經係最新版');
+        }
+      }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = '🔄 檢查更新';
+        U.toast(err.message || '檢查唔到', true);
+      });
+    });
+
     U.el('btn-restore-samples').addEventListener('click', function () {
       var n = Store.restoreSamples();
       if (n) { renderLibrary(); U.toast('載入咗 ' + n + ' 個示範行程'); }
