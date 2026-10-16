@@ -183,6 +183,69 @@
     return Math.max(1, Math.round((metres * 1.3) / 75) + 1);
   }
 
+  /* How you would actually cover a gap. Estimating a walk at every
+     distance produced nonsense — "行路要 ~800 分鐘" between two cities
+     110 km apart, and a 35-minute march out of an airport with luggage.
+     Walking is only the headline when walking is plausible; past that the
+     app reports the distance and says to take something, rather than
+     quoting a pace nobody is going to walk. */
+
+  var TRANSIT_WORDS = new RegExp([
+    '機場', '空港', 'airport', 'aeropuerto', 'aeroporto', 'a[ée]roport', 'flughafen',
+    '車站', '火車站', '總站', '高鐵', 'station', 'gare', 'bahnhof', 'hbf',
+    'terminal', '碼頭', '港口', 'ferry', 'cruise'
+  ].join('|'), 'i');
+
+  /* An airport or a terminus is a transport leg even when it is close:
+     you arrive with luggage, and the walk out of the building is not the
+     walk the straight line measured. */
+  function looksTransit(s) {
+    if (!s) return false;
+    return TRANSIT_WORDS.test([s.title, s.mapQuery, s.mapLabel].join(' '));
+  }
+
+  /* Fastest the leg could plausibly go, door to door. Used to spot a gap
+     that is not merely tight but impossible — never to promise a journey
+     time. Crossing a city and crossing a region are different problems:
+     nothing covers 7 km of streets at motorway speed, and no tram covers
+     100 km at all, so each gets its own ceiling.
+       intercity — 80 km/h, plus a quarter hour at the terminals
+       in town   — 24 km/h door to door, which already assumes a taxi
+                   rather than waiting for the next bus */
+  function minTravelMinutes(metres, intercity) {
+    if (metres == null) return null;
+    return intercity ? Math.round(metres / 1333) + 15
+                     : Math.round(metres / 400) + 6;
+  }
+
+  function minutesText(mins) {
+    if (mins == null) return '';
+    if (mins < 90) return mins + ' 分鐘';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return h + ' 個鐘' + (m ? ' ' + m + ' 分' : '');
+  }
+
+  /* mode: 'walk'      — just walk it
+            'either'   — walkable, but most people would ride
+            'ride'     — across town, take something
+            'intercity'— another town entirely */
+  function legInfo(a, b) {
+    var metres = metresBetween(a, b);
+    if (metres == null) return null;
+    var hub = looksTransit(a) || looksTransit(b);
+    var mode;
+    if (metres > 30000) mode = 'intercity';
+    else if (metres > 2500 || (hub && metres > 1200)) mode = 'ride';
+    else if (metres > 1500 || (hub && metres > 600)) mode = 'either';
+    else mode = 'walk';
+    return {
+      metres: metres, mode: mode, hub: hub,
+      walkable: mode === 'walk' || mode === 'either',
+      walk: walkMinutes(metres),
+      floor: minTravelMinutes(metres, mode === 'intercity')
+    };
+  }
+
   function distanceText(metres) {
     if (metres == null) return '';
     if (metres < 1000) return Math.round(metres / 10) * 10 + ' m';
@@ -252,6 +315,8 @@
     getPath: getPath, setPath: setPath, clone: clone, move: move,
     stopMinutes: stopMinutes, nowMinutes: nowMinutes, dayProgress: dayProgress,
     metresBetween: metresBetween, walkMinutes: walkMinutes, distanceText: distanceText,
+    legInfo: legInfo, looksTransit: looksTransit,
+    minTravelMinutes: minTravelMinutes, minutesText: minutesText,
     todaysDay: todaysDay, untilText: untilText,
     toast: toast, download: download
   };

@@ -434,17 +434,29 @@
   }
 
   /* The gap between two stops, shown where both have coordinates. Reads
-     as part of the timeline rather than as a separate fact. */
+     as part of the timeline rather than as a separate fact. Only says
+     how long the walk is where walking is the realistic answer — see
+     U.legInfo. A straight-line walking estimate across 50 km, or out of
+     an airport with the bags, is worse than saying nothing. */
+  var LEG = {
+    walk:      { icon: '🚶', far: false },
+    either:    { icon: '🚶', far: false },
+    ride:      { icon: '🚍', far: true  },
+    intercity: { icon: '🚆', far: true  }
+  };
+
   function legHTML(a, b) {
     if (!a || !b) return '';
-    var metres = U.metresBetween(a, b);
-    if (metres == null || metres < 60) return '';
-    var walk = U.walkMinutes(metres);
-    var far = metres > 2500;
-    return '<div class="leg' + (far ? ' far' : '') + '">' +
-      '<span class="leg-i">' + (far ? '🚕' : '🚶') + '</span>' +
-      (far ? '相距 ' + esc(U.distanceText(metres)) + ' · 行路要 ~' + walk + ' 分鐘'
-           : '行 ~' + walk + ' 分鐘 · ' + esc(U.distanceText(metres))) +
+    var leg = U.legInfo(a, b);
+    if (!leg || leg.metres < 60) return '';
+    var dist = esc(U.distanceText(leg.metres));
+    var body;
+    if (leg.mode === 'walk')           body = '行 ~' + leg.walk + ' 分鐘 · ' + dist;
+    else if (leg.mode === 'either')    body = dist + ' · 行 ~' + leg.walk + ' 分鐘，搭車快啲';
+    else if (leg.mode === 'ride')      body = '相距 ' + dist + ' · 要搭車';
+    else                               body = '相距 ' + dist + ' · 唔係行路距離，要搭車／火車';
+    return '<div class="leg' + (LEG[leg.mode].far ? ' far' : '') + '">' +
+      '<span class="leg-i">' + LEG[leg.mode].icon + '</span>' + body +
       '</div>';
   }
 

@@ -122,19 +122,31 @@
       for (var i = 1; i < seq.length; i++) {
         var gap = seq[i].m - seq[i - 1].m;
         if (gap <= 0) continue;                 /* already reported by checkTimes */
-        var metres = U.metresBetween(seq[i - 1].s, seq[i].s);
-        var walk = U.walkMinutes(metres);
-        if (walk == null || walk <= gap) continue;
+        var leg = U.legInfo(seq[i - 1].s, seq[i].s);
+        if (!leg) continue;
 
-        /* Over this distance nobody was going to walk anyway, so the
-           complaint is about transport time, not pace. */
-        var far = metres > 2500;
+        /* Where walking is the realistic way across, a walk that outlasts
+           the gap is the finding. Where it is not — across town, or to the
+           next city — quoting a walking pace says nothing useful, so the
+           bar is whether the gap beats what anything could do door to
+           door. A tight transport leg is the planner's call; an impossible
+           one is a mistake. */
+        var icon, over;
+        if (leg.walkable) {
+          if (leg.walk <= gap) continue;
+          icon = '🚶';
+          over = '行路要 ~' + leg.walk + ' 分鐘' + (leg.mode === 'either' ? '，搭車會快啲' : '');
+        } else {
+          if (leg.floor <= gap) continue;
+          icon = leg.mode === 'intercity' ? '🚆' : '🚍';
+          over = '就算直接搭車都要 ~' + U.minutesText(leg.floor);
+        }
+
         out.push({
-          level: 'warn', icon: far ? '🚕' : '🚶',
+          level: 'warn', icon: icon,
           text: placeName(seq[i - 1].s) + ' → ' + placeName(seq[i].s) +
                 ' 得 ' + gap + ' 分鐘',
-          sub: 'Day ' + (di + 1) + ' · 相距 ' + U.distanceText(metres) +
-               (far ? '，行路要 ~' + walk + ' 分鐘，要搭車' : '，行路要 ~' + walk + ' 分鐘'),
+          sub: 'Day ' + (di + 1) + ' · 相距 ' + U.distanceText(leg.metres) + '，' + over,
           goTo: day.id, uid: seq[i].s.uid
         });
       }
