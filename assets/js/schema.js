@@ -9,7 +9,9 @@
  *     place:    { name, lat, lng },        // drives weather + sunset
  *     currency: { base, quote },           // drives the FX converter
  *     departure:{ datetime, utcOffset, note },  // drives the countdown
- *     infoCards:[ { icon, title, mapQuery, rows:[{k,v,sub}] } ],
+ *     flights:  [ { when, route, ref, note } ],        // fixed card
+ *     hotels:   [ { name, address, dates, cancelBy, ref, note, mapQuery } ],
+ *     infoCards:[ { icon, title, mapQuery, rows:[{k,v,sub}] } ],   // free-form
  *     todos:    [ { level:'now'|'soon'|'day', text } ],
  *     links:    [ { icon, label, url } ],
  *     days:     [ { id, title, date, theme, drawRoute, mapNote,
@@ -66,6 +68,8 @@
       place: { name: '', lat: null, lng: null },
       currency: { base: '', quote: '' },
       departure: { datetime: '', utcOffset: '', note: '' },
+      flights: [],
+      hotels: [],
       infoCards: [],
       todos: [],
       links: [],
@@ -105,6 +109,29 @@
         utcOffset: str(t.departure && t.departure.utcOffset),
         note: str(t.departure && t.departure.note)
       },
+      /* Flights and hotels are fixed fields, not improvised info cards:
+         every trip has them, they always render in the same place, and an
+         assistant filling the format cannot decide to merge them into
+         something called "Transport" or "Booked items". */
+      flights: arr(t.flights).map(function (f) {
+        return {
+          when: str(f && f.when),
+          route: str(f && f.route),
+          ref: str(f && f.ref),
+          note: str(f && f.note)
+        };
+      }),
+      hotels: arr(t.hotels).map(function (h) {
+        return {
+          name: str(h && h.name),
+          address: str(h && h.address),
+          dates: str(h && h.dates),
+          cancelBy: str(h && h.cancelBy),
+          ref: str(h && h.ref),
+          note: str(h && h.note),
+          mapQuery: str(h && h.mapQuery)
+        };
+      }),
       infoCards: arr(t.infoCards).map(function (c) {
         return {
           icon: str(c && c.icon),

@@ -6,7 +6,8 @@
     "   照住複製多幾行，用剩嘅空白行請刪走。",
     "3. 填完淨係輸出成個 JSON，唔好有開場白、解釋，唔好用 ``` 包住。",
     "4. 千祈唔好作假座標。唔肯定個地方喺邊，lat / lng 就寫 null。",
-    "5. _說明 同 _範例 呢兩個欄位可以刪走；唔刪都冇所謂，app 會自動忽略。"
+    "5. 機票填 flights，酒店填 hotels —— 唔好塞入 infoCards，app 會自動出返兩張固定嘅卡。",
+    "6. _說明 同 _範例 呢兩個欄位可以刪走；唔刪都冇所謂，app 會自動忽略。"
   ],
 
   "_範例": {
@@ -32,6 +33,16 @@
           "lng": -5.9933
         }
       ]
+    },
+    "flight": { "when": "去程 · 日 18/10", "route": "Gatwick 07:45 → 波爾多 10:25", "note": "法國快 1 個鐘", "ref": "" },
+    "hotel": {
+      "name": "Hôtel Life Bordeaux Gare",
+      "address": "34 Rue de Tauzia",
+      "dates": "18/10 in → 20/10 out",
+      "note": "2 晚 · 行 7 分鐘到火車站",
+      "cancelBy": "",
+      "ref": "",
+      "mapQuery": "Hotel Life Bordeaux Gare"
     },
     "infoCard": {
       "icon": "🚇",
@@ -61,6 +72,14 @@
   "place": { "name": "", "lat": null, "lng": null },
   "currency": { "base": "", "quote": "" },
   "departure": { "datetime": "", "utcOffset": "", "note": "" },
+
+  "flights": [
+    { "when": "", "route": "", "note": "", "ref": "" }
+  ],
+
+  "hotels": [
+    { "name": "", "address": "", "dates": "", "note": "", "cancelBy": "", "ref": "", "mapQuery": "" }
+  ],
 
   "infoCards": [
     { "icon": "", "title": "", "mapQuery": "", "rows": [ { "k": "", "v": "", "sub": "" } ] }

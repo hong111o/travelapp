@@ -48,6 +48,22 @@ AI 預設會寫一大段文字，唔係 app 讀得明嘅格式。
   "currency": { "base": "當地貨幣代碼", "quote": "我屋企嘅貨幣代碼" },
   "departure": { "datetime": "YYYY-MM-DDTHH:MM", "utcOffset": "+01:00", "note": "幾點喺邊起飛" },
 
+  "flights": [
+    { "when": "去程 · 日 18/10", "route": "Gatwick 07:45 → 波爾多 10:25",
+      "note": "法國比 UK 快 1 個鐘", "ref": "訂位編號，冇就留空" },
+    { "when": "回程 · 二 20/10", "route": "波爾多 22:05 → Gatwick 22:45", "note": "", "ref": "" }
+  ],
+
+  "hotels": [
+    { "name": "酒店全名",
+      "address": "街道地址",
+      "dates": "18/10 in → 20/10 out",
+      "note": "2 晚 · check-in 通常 15:00",
+      "cancelBy": "免費取消期限，冇就留空",
+      "ref": "",
+      "mapQuery": "Google Maps 搵得到嘅字串" }
+  ],
+
   "infoCards": [
     { "icon": "🚇", "title": "交通小抄", "mapQuery": "",
       "rows": [ { "k": "機場入城", "v": "地鐵紅線 ~20 分鐘", "sub": "轉綠線去市中心" } ] }
@@ -108,10 +124,14 @@ AI 預設會寫一大段文字，唔係 app 讀得明嘅格式。
 6. `mapLabel` 係地圖圖例用嘅短名，2–6 個字。
 7. `star: true` 淨係畀當日最值得去嗰一兩個。
 8. 描述想粗體就用 `**兩粒星**` 包住，唔好用 HTML。
-9. **唔好加** `uid`、`progress`、`journal`、`schema` 呢啲欄位 —— app 自己會整。
-10. `todos` 嘅 `level` 只可以係 `"now"`、`"soon"`、`"day"` 三個其中一個。
-11. 全部文字用繁體中文（廣東話口語都 OK）。
-12. 每日 4–8 個 stop 比較實際，唔好塞到爆。
+9. **機票一定要入 `flights`，酒店一定要入 `hotels`。**
+   呢兩樣係固定欄位，app 會自動出一張「✈️ 航班」同一張「🏨 酒店」卡。
+   **唔好將佢哋塞入 `infoCards`**，亦都唔好自己開一張「交通」「已訂項目」卡嚟裝佢哋。
+   其他嘢（tram、火車、City Pass、天氣）先至放 `infoCards`。
+10. **唔好加** `uid`、`progress`、`journal`、`schema` 呢啲欄位 —— app 自己會整。
+11. `todos` 嘅 `level` 只可以係 `"now"`、`"soon"`、`"day"` 三個其中一個。
+12. 全部文字用繁體中文（廣東話口語都 OK）。
+13. 每日 4–8 個 stop 比較實際，唔好塞到爆。
 
 ## 我想去
 

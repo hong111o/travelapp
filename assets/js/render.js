@@ -177,6 +177,49 @@
       '</div>';
   }
 
+  /* Fixed cards, always in this order and this shape. Rows with nothing
+     in them are skipped, so a one-way trip or a hotel with no booking
+     reference still reads cleanly. */
+  function flightsHTML(trip) {
+    var legs = trip.flights.filter(function (f) { return f.when || f.route; });
+    if (!legs.length) return '';
+    return '<div class="card"><h2>\u2708\ufe0f \u822a\u73ed</h2>' +
+      legs.map(function (f) {
+        var sub = [f.note, f.ref ? '\u8a02\u4f4d\u7de8\u865f ' + f.ref : ''].filter(Boolean).join(' \u00b7 ');
+        return '<div class="kv"><span class="k">' + esc(f.when) + '</span>' +
+          '<span class="v">' + rich(f.route) +
+          (sub ? '<small>' + rich(sub) + '</small>' : '') + '</span></div>';
+      }).join('') + '</div>';
+  }
+
+  function hotelsHTML(trip) {
+    var stays = trip.hotels.filter(function (h) { return h.name || h.address; });
+    if (!stays.length) return '';
+    return stays.map(function (h, i) {
+      var nav = h.mapQuery || h.name
+        ? ' <a class="gmap" style="margin-left:6px" href="' +
+          esc(U.mapsUrl(h.mapQuery || h.name)) + '" target="_blank" rel="noopener">\ud83e\udded \u5c0e\u822a</a>'
+        : '';
+      var title = '\ud83c\udfe8 \u9152\u5e97' + (stays.length > 1 ? ' ' + (i + 1) : '');
+      var rows = [
+        ['\u540d\u7a31', h.name, ''],
+        ['\u4f4d\u7f6e', h.address, ''],
+        ['\u5165 / \u9000\u623f', h.dates, h.note],
+        ['\u514d\u8cbb\u53d6\u6d88', h.cancelBy, ''],
+        ['\u8a02\u4f4d\u7de8\u865f', h.ref, '']
+      ].filter(function (r) { return r[1]; });
+
+      return '<div class="card"><h2>' + title + nav + '</h2>' +
+        rows.map(function (r) {
+          return '<div class="kv"><span class="k">' + r[0] + '</span><span class="v">' +
+            rich(r[1]) + (r[2] ? '<small>' + rich(r[2]) + '</small>' : '') + '</span></div>';
+        }).join('') +
+        /* A note with no 入/退房 row to hang off still belongs somewhere. */
+        (h.note && !h.dates ? '<p class="tinynote">' + rich(h.note) + '</p>' : '') +
+        '</div>';
+    }).join('');
+  }
+
   function infoCardsHTML(trip) {
     return trip.infoCards.map(function (c) {
       var rows = c.rows.filter(function (r) { return r.k || r.v; });
@@ -304,6 +347,8 @@
         weatherHTML(trip) +
         fxHTML(trip) +
         countdownHTML(trip) +
+        flightsHTML(trip) +
+        hotelsHTML(trip) +
         infoCardsHTML(trip) +
         dayCardsHTML(trip) +
         linksHTML(trip) +

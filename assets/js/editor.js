@@ -197,6 +197,48 @@
       '</div></div>';
   }
 
+  function paneBooking() {
+    var flights = state.work.flights.map(function (f, i) {
+      var p = 'flights.' + i;
+      return '<div class="rep" data-dragrow>' +
+        repHead('flights', i, f.when || f.route) +
+        input('\u908a\u4e00\u7a0b', p + '.when', { placeholder: '\u53bb\u7a0b \u00b7 \u4e94 18/9' }) +
+        input('\u822a\u73ed', p + '.route', { placeholder: 'Gatwick 05:55 \u2192 M\u00e1laga 09:55' }) +
+        input('\u5099\u8a3b', p + '.note', { optional: true, placeholder: '\u897f\u73ed\u7259\u6bd4 UK \u5feb 1 \u500b\u9418' }) +
+        input('\u8a02\u4f4d\u7de8\u865f', p + '.ref', { optional: true }) +
+      '</div>';
+    }).join('');
+
+    var hotels = state.work.hotels.map(function (h, i) {
+      var p = 'hotels.' + i;
+      return '<div class="rep" data-dragrow>' +
+        repHead('hotels', i, h.name) +
+        input('\u540d\u7a31', p + '.name', { placeholder: 'Casual del Mar M\u00e1laga' }) +
+        input('\u5730\u5740', p + '.address', { optional: true, placeholder: 'Av. de la Aurora 9' }) +
+        input('\u5165 / \u9000\u623f', p + '.dates', { optional: true, placeholder: '18/9 in \u2192 21/9 out' }) +
+        input('\u5099\u8a3b', p + '.note', { optional: true, placeholder: '3 \u665a \u00b7 check-in \u901a\u5e38 15:00' }) +
+        input('\u514d\u8cbb\u53d6\u6d88\u671f\u9650', p + '.cancelBy', { optional: true, placeholder: '15/9 18:00 \u524d' }) +
+        input('\u8a02\u4f4d\u7de8\u865f', p + '.ref', { optional: true }) +
+        input('\u5c0e\u822a\u641c\u5c0b\u5b57', p + '.mapQuery', { optional: true,
+          hint: '\u7559\u7a7a\u5c31\u7528\u4e0a\u9762\u500b\u540d\u5b57\u53bb\u641c\u3002' }) +
+      '</div>';
+    }).join('');
+
+    return '<div class="ed-pane" data-pane="booking">' +
+      '<div class="fieldset"><h3>\u2708\ufe0f \u822a\u73ed</h3>' +
+        '<p class="hint">\u56fa\u5b9a\u4e00\u5f35\u5361\uff0c\u6c38\u9060\u55ba\u9996\u9801\u540c\u4e00\u500b\u4f4d\u3002\u55ae\u7a0b\u5c31\u586b\u4e00\u884c\uff0c\u8f49\u6a5f\u5c31\u586b\u591a\u884c\u3002</p>' +
+        (flights ? '<div data-draglist="flights">' + flights + '</div>'
+                 : '<div class="emptyrep">\u4ecd\u672a\u586b\u822a\u73ed</div>') +
+        addBtn('flights', 'flight', '\u52a0\u4e00\u7a0b') +
+      '</div>' +
+      '<div class="fieldset"><h3>\ud83c\udfe8 \u9152\u5e97</h3>' +
+        '<p class="hint">\u4e00\u9593\u4e00\u5f35\u5361\uff0c\u6709\u5c0e\u822a\u63a3\u3002\u642c\u9152\u5e97\u5c31\u52a0\u591a\u4e00\u9593\u3002</p>' +
+        (hotels ? '<div data-draglist="hotels">' + hotels + '</div>'
+                : '<div class="emptyrep">\u4ecd\u672a\u586b\u9152\u5e97</div>') +
+        addBtn('hotels', 'hotel', '\u52a0\u4e00\u9593') +
+      '</div></div>';
+  }
+
   function paneCards() {
     var cards = state.work.infoCards.map(function (c, i) {
       return '<div class="rep">' +
@@ -325,6 +367,7 @@
 
   var TABS = [
     ['basics', '基本'],
+    ['booking', '航班 · 酒店'],
     ['days', '每日行程'],
     ['cards', '資料卡'],
     ['extras', '要訂 / 連結'],
@@ -345,7 +388,7 @@
           '" data-tab="' + t[0] + '">' + esc(t[1]) + '</button>';
       }).join('') + '</div></div>' +
       '<div class="wrap" id="ed-body">' +
-        paneBasics() + paneDays() + paneCards() + paneExtras() + paneFood() + paneJSON() +
+        paneBasics() + paneBooking() + paneDays() + paneCards() + paneExtras() + paneFood() + paneJSON() +
       '</div>' +
       '<div class="savebar"><div class="savebar-in">' +
         '<span class="st" id="ed-state"></span>' +
@@ -362,7 +405,7 @@
     var body = U.el('ed-body');
     if (!body) return render();
     var scroll = window.scrollY;
-    body.innerHTML = paneBasics() + paneDays() + paneCards() + paneExtras() + paneFood() + paneJSON();
+    body.innerHTML = paneBasics() + paneBooking() + paneDays() + paneCards() + paneExtras() + paneFood() + paneJSON();
     showTab(state.tab);
     window.scrollTo(0, scroll);
     var ttl = document.querySelector('#view-editor .ttl');
@@ -397,6 +440,8 @@
     switch (kind) {
       case 'day': return Schema.blankDay(state.work.days.length, state.work.startDate);
       case 'stop': return Schema.blankStop();
+      case 'flight': return { when: '', route: '', ref: '', note: '' };
+      case 'hotel': return { name: '', address: '', dates: '', cancelBy: '', ref: '', note: '', mapQuery: '' };
       case 'card': return { icon: '', title: '', mapQuery: '', rows: [{ k: '', v: '', sub: '' }] };
       case 'row': return { k: '', v: '', sub: '' };
       case 'todo': return { level: 'soon', text: '' };
