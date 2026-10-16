@@ -14,7 +14,7 @@
  * Live data (weather, FX) is never cached — a stale exchange rate is worse
  * than an honest "需上網更新".
  */
-const VERSION = 'v12';
+const VERSION = 'v13';
 const SHELL = 'tripbook-shell-' + VERSION;
 const TILES = 'tripbook-tiles-' + VERSION;
 
@@ -37,6 +37,7 @@ const SHELL_FILES = [
   './assets/js/widgets.js',
   './assets/js/maps.js',
   './assets/js/share.js',
+  './assets/js/geocode.js',
   './assets/js/checkup.js',
   './assets/js/offline.js',
   './assets/js/photos.js',
@@ -103,7 +104,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   /* Weather and FX must stay live; let them fail honestly when offline. */
-  if (/api\.open-meteo\.com|currency-api|open\.er-api\.com/.test(url)) return;
+  if (/api\.open-meteo\.com|currency-api|open\.er-api\.com|nominatim\.openstreetmap\.org/.test(url)) return;
 
   /* Google Fonts is a progressive enhancement — cache opportunistically so
      the Chinese face survives offline once it has been seen, but never

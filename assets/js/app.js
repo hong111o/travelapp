@@ -401,6 +401,56 @@
     else location.hash = target;
   }
 
+  /* --- fill in missing coordinates ------------------------------------- */
+
+  function geocodeTrip(btn) {
+    if (!current) return;
+    var bar = U.el('gc-bar'), pct = U.el('gc-pct');
+    var total = Geocode.countPending(current);
+    if (!total) { U.toast('冇嘢要補'); return; }
+    if (!navigator.onLine) { U.toast('要上網先搵到座標', true); return; }
+
+    btn.disabled = true;
+    var was = btn.textContent;
+    btn.textContent = '搵緊…';
+    if (pct) pct.textContent = '0 / ' + total;
+
+    /* fillTrip mutates a copy, so the saved trip only changes if it worked. */
+    var work = Schema.normalize(U.clone(current));
+
+    Geocode.fillTrip(work, function (done, all, hits) {
+      if (bar) bar.style.width = Math.round(done / all * 100) + '%';
+      if (pct) pct.textContent = done + ' / ' + all;
+      btn.textContent = '搵緊… 已補 ' + hits;
+    }).then(function (res) {
+      btn.disabled = false;
+      btn.textContent = was;
+
+      if (!res.found.length) {
+        U.toast('一個都搵唔到，可能要自己貼地圖連結', true);
+        return;
+      }
+      work.updatedAt = new Date().toISOString();
+      if (!Store.save(work)) { U.toast('儲存唔到', true); return; }
+
+      var msg = '補咗 ' + res.found.length + ' 個座標';
+      if (res.missed.length) msg += '，仲有 ' + res.missed.length + ' 個搵唔到';
+      U.toast(msg + ' ✓');
+
+      /* The trip changed, so re-render it and land back on the checkup so
+         the remaining findings are visible. */
+      current = null;
+      var target = '#/trip/' + encodeURIComponent(work.id) + '/checkup';
+      if (location.hash === target) route();
+      else location.hash = target;
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.textContent = was;
+      console.warn('[geocode]', err);
+      U.toast('搵唔到座標：' + err.message, true);
+    });
+  }
+
   /* --- share and print ------------------------------------------------ */
 
   function shareTrip(btn) {
@@ -680,6 +730,7 @@
     else if (act === 'checkup') { go('#/trip/' + encodeURIComponent(current.id) + '/checkup'); }
     else if (act === 'share') { e.preventDefault(); shareTrip(btn); }
     else if (act === 'print') { e.preventDefault(); printTrip(); }
+    else if (act === 'geocode') { e.preventDefault(); geocodeTrip(btn); }
     else if (act === 'goto') {
       e.preventDefault();
       gotoPlace(btn.getAttribute('data-sub'), btn.getAttribute('data-uid'));

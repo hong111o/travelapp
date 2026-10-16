@@ -641,6 +641,20 @@
         '<span class="sp"></span><span class="bt">行程體檢</span></div>' +
       '<div class="day-top"><div class="dn">出發前</div><h3>行程體檢</h3>' +
         '<div class="theme">查座標、時間、行唔行得切、仲欠咩</div></div>' +
+      (Geocode.countPending(trip)
+        ? '<div class="card gccard" id="gc-card">' +
+            '<h2>\ud83d\udd0e \u81ea\u52d5\u88dc\u5ea7\u6a19</h2>' +
+            '<p class="tinynote" style="margin-top:0">' +
+              '\u6709 <b>' + Geocode.countPending(trip) + '</b> \u500b\u9ede\u5187\u5ea7\u6a19\uff0c\u5514\u6703\u51fa\u73fe\u55ba\u5730\u5716\u3002' +
+              '\u6309\u4e00\u4e0b\u5c31\u81ea\u52d5\u6435\u8fd4\uff08\u7528 OpenStreetMap\uff0c\u5514\u4f7f key\uff09\u3002' +
+              '\u4e00\u79d2\u6435\u4e00\u500b\uff0c\u8981\u4e0a\u7db2\u3002' +
+            '</p>' +
+            '<div class="dlrow"><div class="dlbar"><i id="gc-bar"></i></div>' +
+            '<span class="dlpct" id="gc-pct"></span></div>' +
+            '<button class="btn addrow" style="border-style:solid" data-act="geocode">' +
+              '\u81ea\u52d5\u88dc\u8fd4\u5ea7\u6a19</button>' +
+          '</div>'
+        : '') +
       (findings.length
         ? '<div class="cusum">' +
             (c.bad ? '<span class="cupill bad">' + c.bad + ' 要睇下</span>' : '') +

@@ -589,3 +589,7 @@ body.dragging-now .rep{transition:transform .14s ease}
   a { color: #000; text-decoration: none }
   footer { border-top: 1px solid #bbb; padding-top: 6pt }
 }
+
+/* auto-fill coordinates card on 行程體檢 */
+.gccard{border-left:4px solid var(--teal)}
+.gccard h2{margin-bottom:4px}
