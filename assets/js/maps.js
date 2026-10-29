@@ -1,4 +1,4 @@
-/* 行程本 · read a map link
+/* Travel Marvel · read a map link
  *
  * Pulling coordinates out of a Google Maps URL by hand is the most
  * tedious part of entering a trip, and the usual way to fix one the

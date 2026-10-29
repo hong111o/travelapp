@@ -1,4 +1,4 @@
-/* 行程本 · router + library
+/* Travel Marvel · router + library
  *
  * Routes live in the hash so the phone's back button works:
  *   #/                     library
@@ -922,7 +922,90 @@
       if (n) { renderLibrary(); U.toast('載入咗 ' + n + ' 個示範行程'); }
     });
 
+    wireTheme();
+    wireRestore();
+
     route();
+  }
+
+  /* --- theme ------------------------------------------------------
+     The OS choice is honoured by default; this only exists for the
+     times it is wrong — a bright carriage at night, or a phone stuck
+     on dark when you want to show someone the map. */
+  var THEME_KEY = 'tripbook.theme';
+
+  function currentTheme() {
+    try { return localStorage.getItem(THEME_KEY) || ''; } catch (e) { return ''; }
+  }
+
+  function systemPrefersDark() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  function isDark() {
+    var set = currentTheme();
+    return set ? set === 'dark' : systemPrefersDark();
+  }
+
+  function paintThemeButton() {
+    var btn = U.el('btn-theme');
+    if (!btn) return;
+    /* The label says where the button takes you, not where you are. */
+    btn.textContent = isDark() ? '☀️ 淺色' : '🌙 深色';
+  }
+
+  /* The attribute is always written, resolved — never left off for the
+     OS to answer. The dark values live in exactly one CSS block that
+     way, instead of one copy under a media query and one under the
+     attribute, which had already drifted apart once. */
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', isDark() ? 'dark' : 'light');
+    paintThemeButton();
+  }
+
+  function wireTheme() {
+    applyTheme();
+    var btn = U.el('btn-theme');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var next = isDark() ? 'light' : 'dark';
+        try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* ignore */ }
+        applyTheme();
+      });
+    }
+    /* Follow the OS while no explicit choice has been made. */
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onChange = function () { if (!currentTheme()) applyTheme(); };
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
+  }
+
+  /* --- one step back ----------------------------------------------
+     Offers whatever the store kept before the last write. Says what it
+     holds before doing it, because the whole point is that you reach
+     for this after something went wrong and you are not sure what. */
+  function wireRestore() {
+    var btn = U.el('btn-restore');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var info = Store.backupInfo();
+      if (!info) { U.toast('冇嘢可以復原'); return; }
+      var when = U.shortDateTime(info.at);
+      var names = info.titles.slice(0, 4).join('、') + (info.titles.length > 4 ? '…' : '');
+      var msg = '回到上一次儲存之前？\n\n會變返：' + info.count + ' 個行程' +
+        (names ? '\n' + names : '') + (when ? '\n（' + when + '）' : '') +
+        '\n\n而家嘅狀態會變成下一個「復原」嘅對象，所以撳多次就返轉頭。';
+      if (!confirm(msg)) return;
+      if (Store.restoreBackup()) {
+        current = null;          /* force a fresh read on the next open */
+        renderLibrary();
+        U.toast('復原咗');
+      } else {
+        U.toast('復原唔到', true);
+      }
+    });
   }
 
   global.App = { openTrip: openTrip, showLibrary: showLibrary, renderLibrary: renderLibrary };

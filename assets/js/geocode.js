@@ -1,4 +1,4 @@
-/* 行程本 · look up the coordinates we are missing
+/* Travel Marvel · look up the coordinates we are missing
  *
  * A stop with a mapQuery but no lat/lng is not really missing anything —
  * the place is findable, the navigation button works. It just cannot be

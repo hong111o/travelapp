@@ -1,4 +1,4 @@
-# 叫 AI 幫你計劃行程 → 直接匯入「行程本」
+# 叫 AI 幫你計劃行程 → 直接匯入「Travel Marvel」
 
 AI 預設會寫一大段文字，唔係 app 讀得明嘅格式。
 下面成段 copy 俾任何 AI（Claude / ChatGPT / Gemini 都得），佢就會吐返一個可以直接匯入嘅 JSON。

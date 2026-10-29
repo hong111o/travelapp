@@ -1,4 +1,4 @@
-/* 行程本 · service worker
+/* Travel Marvel · service worker
  *
  * Two caches with different rules:
  *
@@ -14,7 +14,7 @@
  * Live data (weather, FX) is never cached — a stale exchange rate is worse
  * than an honest "需上網更新".
  */
-const VERSION = 'v16';
+const VERSION = 'v17';
 const SHELL = 'tripbook-shell-' + VERSION;
 const TILES = 'tripbook-tiles-' + VERSION;
 
@@ -23,7 +23,9 @@ const SHELL_FILES = [
   './index.html',
   './manifest.webmanifest',
   './assets/css/app.css',
-  './assets/icon.svg',
+  './assets/icon-48.png',
+  './assets/icon-192.png',
+  './assets/apple-touch-icon.png',
   './assets/fonts/fonts.css',
   './assets/fonts/fraunces-latin-400-normal.woff2',
   './assets/fonts/fraunces-latin-400-italic.woff2',

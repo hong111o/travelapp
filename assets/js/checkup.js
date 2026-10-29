@@ -1,4 +1,4 @@
-/* 行程本 · 行程體檢
+/* Travel Marvel · 行程體檢
  *
  * Reads a finished plan and reports what looks wrong, before you are
  * standing in the street finding out. Everything here comes from data the

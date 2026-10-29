@@ -1,4 +1,4 @@
-# 行程本 · Trip Book
+# Travel Marvel
 
 自己嘅旅行行程 app。一個行程 = 一個 JSON 檔，app 負責畫出嚟 —— 所以同一套版面用得一世，唔使每次旅行重寫一次 HTML。
 

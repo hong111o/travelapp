@@ -1,4 +1,4 @@
-/* 行程本 · drag to reorder
+/* Travel Marvel · drag to reorder
  *
  * Pointer-events based, because HTML5 drag-and-drop does not fire on
  * touch — and this list is mostly reordered on a phone.

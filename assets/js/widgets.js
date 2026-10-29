@@ -1,4 +1,4 @@
-/* 行程本 · live widgets
+/* Travel Marvel · live widgets
  *
  * Weather, sunset, FX and the countdown used to be hardcoded to Málaga.
  * Each one now takes its configuration from the trip, and hides itself

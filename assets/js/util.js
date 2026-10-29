@@ -1,4 +1,4 @@
-/* 行程本 · shared helpers */
+/* Travel Marvel · shared helpers */
 (function (global) {
   'use strict';
 
@@ -159,6 +159,21 @@
     return 'upcoming';
   }
 
+  /* A timestamp as a person would say it: today becomes a clock time,
+     anything older carries its date. Used where the app has to say when
+     something was taken, such as the restore point. */
+  function shortDateTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var hh = ('0' + d.getHours()).slice(-2), mm = ('0' + d.getMinutes()).slice(-2);
+    var now = new Date();
+    var sameDay = d.getFullYear() === now.getFullYear() &&
+                  d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    if (sameDay) return '今日 ' + hh + ':' + mm;
+    return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + hh + ':' + mm;
+  }
+
   /* --- distance -------------------------------------------------
      Straight-line, from coordinates the trip already carries. No API, no
      key, works offline. Real walking is longer than the crow flies, so
@@ -312,6 +327,7 @@
     esc: esc, rich: rich, plain: plain, el: el, uid: uid, slug: slug, mapsUrl: mapsUrl,
     parseISODate: parseISODate, weekdayZH: weekdayZH, shortDate: shortDate,
     dateRangeZH: dateRangeZH, addDays: addDays, todayISO: todayISO, tripPhase: tripPhase,
+    shortDateTime: shortDateTime,
     getPath: getPath, setPath: setPath, clone: clone, move: move,
     stopMinutes: stopMinutes, nowMinutes: nowMinutes, dayProgress: dayProgress,
     metresBetween: metresBetween, walkMinutes: walkMinutes, distanceText: distanceText,

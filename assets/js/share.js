@@ -1,4 +1,4 @@
-/* 行程本 · send a trip to someone
+/* Travel Marvel · send a trip to someone
  *
  * Builds one self-contained .html file holding the itinerary and enough
  * of the app to display it. The recipient needs no account, no install

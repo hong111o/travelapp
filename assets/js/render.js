@@ -1,4 +1,4 @@
-/* 行程本 · itinerary renderer
+/* Travel Marvel · itinerary renderer
  *
  * Turns a trip object into the itinerary screens. Every section is
  * conditional: a trip with no flights card, no food list or no
@@ -17,7 +17,7 @@
       '<header class="hero">' +
         '<div class="hero-top">' +
           (readOnly ? '' :
-            '<button class="btn btn-sm" data-act="library">‹ 行程本</button>' +
+            '<button class="btn btn-sm" data-act="library">‹ Travel Marvel</button>' +
             '<button class="btn btn-sm" data-act="edit">✏️ 編輯</button>') +
         '</div>' +
         '<div class="hero-inner">' +
@@ -27,7 +27,7 @@
           (dates ? '<div class="dates">' + esc(dates) + '</div>' : '') +
         '</div>' +
         '<svg class="wave" viewBox="0 0 1440 46" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">' +
-          '<path d="M0,24 C240,44 480,4 720,20 C960,36 1200,10 1440,26 L1440,46 L0,46 Z" fill="#FAF6EF"/>' +
+          '<path d="M0,24 C240,44 480,4 720,20 C960,36 1200,10 1440,26 L1440,46 L0,46 Z" fill="currentColor"/>' +
         '</svg>' +
       '</header>';
   }

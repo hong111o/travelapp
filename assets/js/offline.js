@@ -1,4 +1,4 @@
-/* 行程本 · offline support
+/* Travel Marvel · offline support
  *
  * Registers the service worker, reports connection state, and warms the
  * map tiles a trip needs so the maps still draw with no signal.

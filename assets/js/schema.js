@@ -1,4 +1,4 @@
-/* 行程本 · trip data model
+/* Travel Marvel · trip data model
  *
  * One trip = one JSON object. Everything the itinerary shows comes from
  * here, so adding a trip never means touching markup or code.
@@ -85,8 +85,47 @@
   /* Coerce anything trip-shaped into the canonical form. Runs on load,
      on import and before save, so hand-edited JSON and older files still
      render instead of throwing. */
+  /* --- migration ------------------------------------------------
+     Every trip carries the schema version it was written under. Until
+     now that number was written and never read, which made it a promise
+     the code did not keep: the first time a field changes shape, trips
+     saved before the change would be read as if they had the new shape.
+     MIGRATIONS[n] upgrades a trip from version n to n + 1, and migrate()
+     walks a trip up to the current version before normalize() sees it.
+     There is nothing to do yet — that is the point of adding it while it
+     is still free. */
+  var MIGRATIONS = {
+    /* 1: function (t) { ...turn a v1 trip into a v2 one, in place... } */
+  };
+
+  function migrate(t) {
+    if (!t || typeof t !== 'object') return t;
+    /* A trip with no version is one written before versions existed,
+       which is version 1 by definition. */
+    var from = Number(t.schema);
+    if (!isFinite(from) || from < 1) from = 1;
+
+    /* Newer than this build understands: leave it alone rather than
+       guess. normalize() keeps the fields it knows and drops the rest,
+       so an old app shows a newer trip as best it can instead of
+       mangling it. */
+    if (from > SCHEMA) return t;
+
+    for (var v = from; v < SCHEMA; v++) {
+      var step = MIGRATIONS[v];
+      if (!step) continue;
+      try {
+        step(t);
+      } catch (e) {
+        console.warn('[schema] migration ' + v + ' → ' + (v + 1) + ' failed', e);
+        break;
+      }
+    }
+    return t;
+  }
+
   function normalize(raw) {
-    var t = (raw && typeof raw === 'object') ? raw : {};
+    var t = migrate((raw && typeof raw === 'object') ? raw : {});
     var out = {
       schema: SCHEMA,
       id: str(t.id) || U.uid('trip'),
@@ -258,6 +297,7 @@
 
   global.Schema = {
     SCHEMA: SCHEMA,
+    migrate: migrate,
     blankTrip: blankTrip,
     blankDay: blankDay,
     blankStop: blankStop,

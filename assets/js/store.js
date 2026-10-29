@@ -1,4 +1,4 @@
-/* 行程本 · storage
+/* Travel Marvel · storage
  *
  * Trips live in localStorage, so the app works offline and needs no
  * server or account. The trade-off is that storage is per-device and
@@ -12,6 +12,11 @@
 
   var KEY = 'tripbook.trips.v1';
   var SEEDED = 'tripbook.seeded.v1';
+  /* The value KEY held before the most recent write. One step of undo is
+     enough for the accident that actually happens: a delete you meant for
+     the other trip, or an import that overwrote the wrong one. */
+  var BACKUP = 'tripbook.trips.bak';
+  var BACKUP_AT = 'tripbook.trips.bak.at';
 
   function readRaw() {
     try {
@@ -26,8 +31,34 @@
   }
 
   function writeRaw(list) {
+    var next;
     try {
-      localStorage.setItem(KEY, JSON.stringify(list));
+      next = JSON.stringify(list);
+    } catch (e) {
+      console.warn('[store] could not serialise trips', e);
+      U.toast('儲存唔到（資料有問題）', true);
+      return false;
+    }
+
+    /* Keep what was there before this write, so one bad move is
+       recoverable. Written first and separately: if the backup fails on
+       quota, the real save should still get its chance. */
+    var prev = null;
+    try { prev = localStorage.getItem(KEY); } catch (e) { /* unreadable; carry on */ }
+    if (prev != null && prev !== next) {
+      try {
+        localStorage.setItem(BACKUP, prev);
+        localStorage.setItem(BACKUP_AT, new Date().toISOString());
+      } catch (e) {
+        /* A backup is a nicety; losing it must not block the save. Drop
+           the stale one rather than leave a backup that lies about when
+           it was taken. */
+        try { localStorage.removeItem(BACKUP); localStorage.removeItem(BACKUP_AT); } catch (e2) { /* ignore */ }
+      }
+    }
+
+    try {
+      localStorage.setItem(KEY, next);
       return true;
     } catch (e) {
       /* Quota is the realistic failure here — a long trip with many
@@ -36,6 +67,38 @@
       U.toast('儲存唔到（瀏覽器空間滿咗或者無痕模式）', true);
       return false;
     }
+  }
+
+  /* --- one step back -------------------------------------------- */
+
+  /* What the backup holds, for the button that offers it: how many trips
+     and when it was taken, or null when there is nothing to go back to. */
+  function backupInfo() {
+    var raw, at;
+    try {
+      raw = localStorage.getItem(BACKUP);
+      at = localStorage.getItem(BACKUP_AT);
+    } catch (e) { return null; }
+    if (!raw) return null;
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { return null; }
+    if (!Array.isArray(parsed)) return null;
+    var titles = parsed.map(function (t) { return (t && t.title) || '未命名'; });
+    return { count: parsed.length, at: at || '', titles: titles };
+  }
+
+  /* Swap the backup back in. The state being replaced becomes the new
+     backup, so this undoes itself — press it twice and you are back
+     where you started, which is what people expect of one-step undo. */
+  function restoreBackup() {
+    var info = backupInfo();
+    if (!info) return false;
+    var raw;
+    try { raw = localStorage.getItem(BACKUP); } catch (e) { return false; }
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { return false; }
+    if (!Array.isArray(parsed)) return false;
+    return writeRaw(parsed.map(Schema.normalize));
   }
 
   function all() {
@@ -271,6 +334,7 @@
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
     setDone: setDone, setNote: setNote, addFind: addFind,
     clearProgress: clearProgress, migrateUids: migrateUids,
+    backupInfo: backupInfo, restoreBackup: restoreBackup,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON
   };
 })(window);

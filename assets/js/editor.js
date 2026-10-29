@@ -1,4 +1,4 @@
-/* 行程本 · trip editor
+/* Travel Marvel · trip editor
  *
  * A form over the same object the renderer reads, so anything you can
  * type here is exactly what an imported .json can contain — one format,

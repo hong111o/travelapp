@@ -1,14 +1,16 @@
 {
-  "name": "行程本 · Trip Book",
-  "short_name": "行程本",
+  "name": "Travel Marvel",
+  "short_name": "Travel Marvel",
   "description": "自己嘅旅行行程 app — 上載或者填表就出到成個行程。",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FAF6EF",
-  "theme_color": "#0E4D64",
+  "background_color": "#FBF7F0",
+  "theme_color": "#1E4756",
   "icons": [
-    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

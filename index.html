@@ -3,9 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0E4D64">
-<title>行程本 · Trip Book</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<meta name="theme-color" content="#1E4756" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14222A" media="(prefers-color-scheme: dark)">
+<title>Travel Marvel · 行程</title>
+<link rel="icon" type="image/png" sizes="48x48" href="assets/icon-48.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Travel Marvel">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +22,19 @@
 <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
 <script src="assets/vendor/leaflet/leaflet.js"></script>
 <link rel="stylesheet" href="assets/css/app.css">
+<script>
+/* Resolve the theme before first paint: without this a phone set to dark
+   flashes the light theme for as long as the scripts take to load. Kept
+   inline and tiny for that reason. */
+(function () {
+  try {
+    var set = localStorage.getItem('tripbook.theme');
+    var dark = set ? set === 'dark'
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 </head>
 <body>
 
@@ -25,11 +43,11 @@
   <header class="hero hero-lib">
     <div class="hero-inner">
       <div class="kicker">MY TRIPS</div>
-      <h1>行程本</h1>
+      <h1>Travel&nbsp;Marvel</h1>
       <div class="dates">所有行程 · 離線可睇</div>
     </div>
     <svg class="wave" viewBox="0 0 1440 46" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M0,24 C240,44 480,4 720,20 C960,36 1200,10 1440,26 L1440,46 L0,46 Z" fill="#FAF6EF"/>
+      <path d="M0,24 C240,44 480,4 720,20 C960,36 1200,10 1440,26 L1440,46 L0,46 Z" fill="currentColor"/>
     </svg>
   </header>
   <div class="wrap">
@@ -69,7 +87,7 @@
       <p class="tinynote">撳「＋ 新行程」自己填，或者「匯入檔案」上載之前 export 咗嘅 <code>.json</code>。</p>
       <button class="btn" id="btn-restore-samples">載入示範行程</button>
     </div>
-    <footer>行程本 <span id="app-ver"></span> · 資料存喺你部機 <span class="heart">✦</span><br><button class="btn btn-sm" id="btn-update" style="margin-top:9px">🔄 檢查更新</button></footer>
+    <footer>Travel Marvel <span id="app-ver"></span> · 資料存喺你部機 <span class="heart">✦</span><div class="footrow"><button class="btn btn-sm" id="btn-theme" aria-label="轉深色／淺色">🌙 深色</button><button class="btn btn-sm" id="btn-restore">↩️ 復原</button><button class="btn btn-sm" id="btn-update">🔄 檢查更新</button></div></footer>
   </div>
 </div>
 

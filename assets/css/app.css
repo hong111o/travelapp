@@ -1,12 +1,57 @@
 /* ============================================================
-   行程本 · Trip Book — design system
-   Palette + typography carried over from the original
-   Málaga itinerary so every trip keeps the same look.
+   Travel Marvel — design system
+
+   The palette is sampled from the app icon: a watercolour of a
+   Mediterranean bay. Paper cream for the ground, the sea for the
+   accents, ochre and terracotta for warmth, and the deep slate of
+   the hand-lettered title for text. Everything is a token, so the
+   dark theme at the foot of this file is a remap, not a rewrite.
    ============================================================ */
 :root{
-  --sea:#0E4D64; --teal:#1B7A8F; --amber:#E4952B; --amber-soft:#F5E4C6;
-  --sand:#FAF6EF; --sand-2:#F1EADD; --ink:#16292E; --ink-soft:#4A5E63;
-  --line:#DBD2C4; --white:#FFFFFF; --star:#D8801E; --danger:#C0392B;
+  color-scheme:light;
+  /* --- sampled from the artwork --- */
+  --sea:#1E4756;         /* the script ink: deepest blue in the picture */
+  --sea-deep:#16343F;
+  --teal:#3F7F8E;        /* the bay, darkened enough to carry text */
+  --teal-soft:#8ABBC8;
+  --sky:#BFD8E0;
+  --amber:#C98A4B;       /* terracotta roofs, sun-warmed stone */
+  --amber-soft:#EADCC4;
+  --star:#BE7636;
+  --danger:#AD4F40;      /* brick, not fire-engine */
+  --danger-line:#E3C4BE;
+  --olive:#7C8560;
+
+  /* --- surfaces and text --- */
+  --sand:#FBF7F0;        /* paper */
+  --sand-2:#F3ECE0;
+  --surface:#FFFFFF;     /* cards sit on the paper */
+  --ink:#22383F;
+  --ink-soft:#5E7076;
+  --line:#E4DACA;
+  --white:#FFFFFF;       /* literal white, for text on a dark wash */
+  --on-amber:#3A2600;
+
+  /* --- tints, used for pills and highlights --- */
+  --tint:#E7F0F1;        /* pale sea */
+  --tint-line:#D3E3E4;
+  --tint-ok:#DEEAE7;
+  --highlight:#FDF4E3;   /* sunlit paper: today, booked, journal notes */
+  --shadow:rgba(30,71,86,.07);
+
+  /* --- the wash ---
+     Hero, day headers, primary buttons and badges are a painted panel
+     with light type on them. They stay dark in BOTH themes, so they
+     need their own tokens: --sea and --teal are text colours and have
+     to invert after dark, which would turn these panels pale and the
+     white type on them unreadable. */
+  --wash-a:#16343F; --wash-b:#1E4756; --wash-c:#3F7F8E;
+  --pill-bad-bg:#F6D9D4; --pill-bad-fg:#8C2C1C;
+  --pill-warn-bg:#EADCC4; --pill-warn-fg:#7A4A05;
+  --on-wash:#FFFFFF;
+  --on-wash-soft:#E6EFF0;
+  --on-wash-faint:#C8DDE2;
+  --on-wash-kicker:#E2CBA6;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -18,41 +63,70 @@ body{font-family:'Noto Sans HK',system-ui,-apple-system,'PingFang HK','Microsoft
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:var(--sand-2);
   border-radius:5px;padding:1px 5px}
 
+/* ---------- FOCUS ----------
+   There were four :focus rules in the whole sheet and none of them drew
+   a ring, so a keyboard or switch user had no idea where they were.
+   :focus-visible keeps it off for mouse and touch. */
+*:focus-visible{outline:2.5px solid var(--teal);outline-offset:2px;border-radius:6px}
+.btn:focus-visible,.dcard:focus-visible,.tick:focus-visible,.iconbtn:focus-visible{outline-offset:3px}
+.f input:focus-visible,.f textarea:focus-visible,.f select:focus-visible,
+.jsonarea:focus-visible,.schin:focus-visible{outline-offset:0}
+/* Inputs keep their own tinted focus state as well as the ring. */
+.f input:focus,.f textarea:focus,.f select:focus,.jsonarea:focus,.schin:focus,
+.fxcell input:focus{border-color:var(--teal)}
+
 /* ---------- HERO ---------- */
-.hero{position:relative;overflow:hidden;color:var(--white);
-  background:radial-gradient(120% 90% at 82% 8%, rgba(228,149,43,.55) 0%, rgba(228,149,43,0) 42%),
-    linear-gradient(160deg,#0b3d51 0%, #0E4D64 45%, #1B7A8F 100%);
+.hero{position:relative;overflow:hidden;color:var(--on-wash);
+  background:radial-gradient(120% 90% at 82% 8%, rgba(201,138,75,.55) 0%, rgba(201,138,75,0) 42%),
+    linear-gradient(160deg,var(--wash-a) 0%, var(--wash-b) 45%, var(--wash-c) 100%);
   padding:58px 22px 84px}
 .hero-inner{max-width:760px;margin:0 auto}
-.kicker{font-size:.82rem;letter-spacing:.16em;color:var(--amber-soft);font-weight:500}
+.kicker{font-size:.82rem;letter-spacing:.16em;color:var(--on-wash-kicker);font-weight:500}
 .hero h1{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(2.6rem,15vw,6rem);line-height:.92;
   margin:.1em 0 .16em;letter-spacing:-.01em;overflow-wrap:break-word}
 .hero .sub{font-family:'Fraunces',serif;font-style:italic;font-weight:400;
-  font-size:clamp(1rem,4.6vw,1.45rem);color:#EAF3F2}
-.hero .dates{margin-top:14px;font-size:.9rem;color:#CFE4E4}
-.hero-lib{padding:46px 22px 74px}
+  font-size:clamp(1rem,4.6vw,1.45rem);color:var(--on-wash-soft)}
+.hero .dates{margin-top:14px;font-size:.9rem;color:var(--on-wash-faint)}
+/* The library hero wears the app's own picture. Framed on the bay and
+   the village, well below the artwork's own lettering — showing that
+   would put a second ghosted "Travel Marvel" behind the real one. The
+   file is the 512 icon, already precached, so it costs no download. */
+.hero-lib{padding:46px 22px 74px;
+  background:
+    linear-gradient(170deg, rgba(22,52,63,.82) 0%, rgba(30,71,86,.74) 42%, rgba(63,127,142,.78) 100%),
+    url('../icon-512.png') 54% 88% / 165% no-repeat,
+    linear-gradient(160deg,var(--wash-a),var(--wash-c))}
+.hero-lib h1{font-size:clamp(2.1rem,11vw,4.2rem);letter-spacing:.005em}
 .hero-top{position:absolute;top:14px;right:18px;display:flex;gap:8px;z-index:3}
 .hero-top .btn{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3);color:#fff}
 .hero-top .btn:active{background:rgba(255,255,255,.26)}
-.wave{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:44px;display:block}
+.wave{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:44px;display:block;
+  color:var(--sand)}   /* the paper below, so it follows the theme */
 
 /* ---------- BUTTONS ---------- */
+/* 44px is the floor Apple asks for and the one a thumb on a moving
+   train actually needs. The old 9px/14px padding made these ~36. */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;
   font-family:inherit;font-size:.86rem;font-weight:700;color:var(--sea);
-  background:var(--white);border:1px solid var(--line);border-radius:11px;padding:9px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  min-height:44px;padding:10px 16px;
   text-decoration:none;line-height:1.3;-webkit-appearance:none}
 .btn:active{background:var(--sand-2)}
-.btn-primary{background:linear-gradient(150deg,var(--sea),var(--teal));border-color:transparent;color:#fff}
+.btn-primary{background:linear-gradient(150deg,var(--wash-b),var(--wash-c));border-color:transparent;color:#fff}
 .btn-primary:active{filter:brightness(1.12)}
-.btn-amber{background:var(--amber);border-color:transparent;color:#3a2600}
-.btn-danger{color:var(--danger);border-color:#e9c8c3}
-.btn-sm{font-size:.78rem;padding:6px 10px;border-radius:9px}
+.btn-amber{background:var(--amber);border-color:transparent;color:var(--on-amber)}
+.btn-danger{color:var(--danger);border-color:var(--danger-line)}
+.btn-sm{font-size:.78rem;padding:7px 12px;border-radius:10px;min-height:36px}
+/* Small buttons that sit inline keep their size but widen their hit
+   area, so the target is 44px even where the ink is not. */
+.btn-sm::after{content:'';position:absolute;inset:-5px}
+.btn-sm{position:relative}
 .btn[disabled]{opacity:.45;pointer-events:none}
 .libactions{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
 .libactions .btn{flex:1;min-width:140px}
 
 /* ---------- CARDS ---------- */
-.card{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:14px}
 .card h2{font-family:'Fraunces',serif;font-weight:600;font-size:1.2rem;color:var(--sea);margin-bottom:8px}
 .card.empty{text-align:center;padding:26px 20px}
 .card.empty .btn{margin-top:12px}
@@ -81,17 +155,17 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .fxcell label{display:block;font-size:.74rem;color:var(--teal);font-weight:700;margin-bottom:4px}
 .fxcell input{width:100%;font-family:inherit;font-size:1.15rem;font-weight:700;color:var(--sea);
   border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:var(--sand);-webkit-appearance:none}
-.fxcell input:focus{outline:none;border-color:var(--teal);background:#fff}
+.fxcell input:focus{outline:none;border-color:var(--teal);background:var(--surface)}
 .fxswap{font-size:1.2rem;color:var(--amber);padding-bottom:9px}
 .tinynote{font-size:.76rem;color:var(--ink-soft);margin-top:9px}
 
 /* countdown */
-.cd{text-align:center;background:linear-gradient(150deg,#0b3d51,#1B7A8F);border:none;color:#fff}
-.cd-label{font-size:.8rem;color:var(--amber-soft);font-weight:500}
+.cd{text-align:center;background:linear-gradient(150deg,var(--wash-a),var(--wash-c));border:none;color:#fff}
+.cd-label{font-size:.8rem;color:var(--on-wash-kicker);font-weight:500}
 .cd-num{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(1.7rem,8vw,2.4rem);
   line-height:1.15;margin:4px 0;letter-spacing:.01em}
-.cd-sub{font-size:.78rem;color:#CFE4E4}
-.cd-num u{font-size:.62rem;font-weight:400;color:var(--amber-soft);text-decoration:none}
+.cd-sub{font-size:.78rem;color:var(--on-wash-faint)}
+.cd-num u{font-size:.62rem;font-weight:400;color:var(--on-wash-kicker);text-decoration:none}
 
 /* links */
 .linkrow{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:4px}
@@ -101,23 +175,23 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .ilink:active{background:var(--sand-2)}
 
 /* booking / todo */
-.book{background:#FFF8EC;border:1px solid var(--amber-soft)}
+.book{background:var(--highlight);border:1px solid var(--amber-soft)}
 .book h2{color:var(--star)}
 .book ul{list-style:none;margin-top:4px}
 .book li{display:flex;gap:10px;padding:9px 0;border-top:1px dashed #E6D6B6;font-size:.9rem}
 .book li:first-child{border-top:none}
 .tag{flex-shrink:0;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;height:fit-content;margin-top:3px}
-.t-now{background:#C0392B;color:#fff}.t-soon{background:var(--amber);color:#3a2600}.t-ok{background:#DDECE9;color:var(--sea)}
+.t-now{background:var(--danger);color:#fff}.t-soon{background:var(--amber);color:var(--on-amber)}.t-ok{background:var(--tint-ok);color:var(--sea)}
 
 /* ---------- DAY / TRIP CARDS ---------- */
 .daycards{margin-top:16px;display:grid;gap:11px}
 .dcard{display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
-  background:var(--white);border:1px solid var(--line);border-radius:16px;padding:15px 16px;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px 16px;
   font-family:inherit;color:inherit;transition:transform .12s ease, box-shadow .12s ease}
 .dcard:active{transform:scale(.985)}
 .dcard:hover{box-shadow:0 4px 16px rgba(14,77,100,.1)}
 .dcard .num{flex-shrink:0;width:46px;height:46px;border-radius:12px;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;background:linear-gradient(150deg,var(--sea),var(--teal));color:#fff}
+  align-items:center;justify-content:center;background:linear-gradient(150deg,var(--wash-b),var(--wash-c));color:#fff}
 .dcard .num b{font-family:'Fraunces',serif;font-size:1.3rem;line-height:1}
 .dcard .num small{font-size:.6rem;opacity:.85}
 .dcard .txt{flex:1;min-width:0}
@@ -128,12 +202,12 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .dcard.food .num{background:linear-gradient(150deg,var(--amber),#c9791d)}
 
 /* library row: card + its own action strip */
-.tripitem{background:var(--white);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tripitem{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .tripitem .dcard{border:none;border-radius:0;background:transparent}
 .tripitem .rowacts{display:flex;gap:7px;padding:0 14px 12px;flex-wrap:wrap}
 .pillstate{display:inline-block;font-size:.66rem;font-weight:700;border-radius:999px;padding:1px 9px;
-  background:#DDECE9;color:var(--sea);margin-left:6px;vertical-align:1px}
-.pillstate.live{background:var(--amber);color:#3a2600}
+  background:var(--tint-ok);color:var(--sea);margin-left:6px;vertical-align:1px}
+.pillstate.live{background:var(--amber);color:var(--on-amber)}
 .pillstate.past{background:var(--sand-2);color:var(--ink-soft)}
 
 /* ---------- BACK BAR ---------- */
@@ -146,13 +220,13 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .backbar .sp{flex:1}
 
 /* ---------- DAY VIEW ---------- */
-.day-top{padding:18px 20px;background:linear-gradient(120deg,var(--sea),var(--teal));color:#fff;
+.day-top{padding:18px 20px;background:linear-gradient(120deg,var(--wash-b),var(--wash-c));color:#fff;
   border-radius:16px;margin-top:8px}
-.day-top .dn{font-family:'Fraunces',serif;font-style:italic;font-size:.95rem;color:var(--amber-soft)}
+.day-top .dn{font-family:'Fraunces',serif;font-style:italic;font-size:.95rem;color:var(--on-wash-kicker)}
 .day-top h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.5rem;margin-top:2px}
 .day-top .theme{font-size:.86rem;color:#D6E7E7;margin-top:3px}
 
-.stops{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:6px 18px;margin-top:12px}
+.stops{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px 18px;margin-top:12px}
 .stop{display:grid;grid-template-columns:60px 1fr;gap:13px;padding:14px 0;border-top:1px solid var(--sand-2)}
 .stop:first-child{border-top:none}
 .stop>div:last-child{min-width:0}
@@ -165,9 +239,9 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .bk{display:block;font-size:.79rem;color:var(--ink-soft);margin-top:5px;padding-left:10px;border-left:2px solid var(--amber-soft)}
 .bk b{color:var(--teal)}
 .gmap{display:inline-block;margin:6px 0 2px;font-size:.76rem;font-weight:700;color:var(--sea);
-  background:#EAF3F2;border:1px solid #cfe1e1;border-radius:999px;padding:3px 11px;text-decoration:none}
+  background:var(--tint);border:1px solid var(--tint-line);border-radius:999px;padding:3px 11px;text-decoration:none}
 .gmap:active{background:#d9ecec}
-.pin{display:inline-block;font-size:.72rem;font-weight:700;color:var(--sea);background:#EAF3F2;
+.pin{display:inline-block;font-size:.72rem;font-weight:700;color:var(--sea);background:var(--tint);
   border-radius:6px;padding:1px 7px;margin-top:6px}
 
 /* ---------- MAP ---------- */
@@ -177,10 +251,10 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .maplegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:.82rem;color:var(--ink-soft)}
 .maplegend span{display:inline-flex;align-items:center;gap:6px}
 .maplegend b{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
-  border-radius:50%;background:var(--sea);color:#fff;font-size:.72rem;flex-shrink:0}
+  border-radius:50%;background:var(--wash-b);color:var(--on-wash);font-size:.72rem;flex-shrink:0}
 .leaflet-div-icon.nmk{background:transparent;border:none}
 .nmk span{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;
-  background:var(--sea);color:#fff;font-weight:700;font-size:.82rem;border:2px solid #fff;
+  background:var(--wash-b);color:var(--on-wash);font-weight:700;font-size:.82rem;border:2px solid #fff;
   box-shadow:0 1px 5px rgba(0,0,0,.35)}
 .maphint{font-size:.78rem;color:var(--ink-soft);margin:8px 2px 0}
 
@@ -207,11 +281,11 @@ footer .heart{color:var(--amber)}
   -webkit-overflow-scrolling:touch}
 .ed-tab{flex-shrink:0;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--ink-soft);
   background:transparent;border:1px solid var(--line);border-radius:999px;padding:6px 13px;white-space:nowrap}
-.ed-tab.on{background:var(--sea);border-color:var(--sea);color:#fff}
+.ed-tab.on{background:var(--wash-b);border-color:var(--wash-b);color:var(--on-wash)}
 .ed-pane{display:none}
 .ed-pane.on{display:block}
 
-.fieldset{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px}
+.fieldset{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:14px}
 .fieldset>h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;color:var(--sea);
   display:flex;align-items:center;gap:8px}
 .fieldset>.hint{font-size:.78rem;color:var(--ink-soft);margin-top:3px}
@@ -224,7 +298,7 @@ footer .heart{color:var(--amber)}
 .f textarea{min-height:76px;resize:vertical}
 .f select{background-image:linear-gradient(45deg,transparent 50%,var(--teal) 50%),linear-gradient(135deg,var(--teal) 50%,transparent 50%);
   background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
-.f input:focus,.f textarea:focus,.f select:focus{outline:none;border-color:var(--teal);background:#fff}
+.f input:focus,.f textarea:focus,.f select:focus{outline:none;border-color:var(--teal);background:var(--surface)}
 .f .sub{font-size:.72rem;color:var(--ink-soft);margin-top:3px}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .frow-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -236,25 +310,25 @@ footer .heart{color:var(--amber)}
 .rep{border:1px solid var(--line);border-radius:13px;padding:11px 13px;margin-top:10px;background:var(--sand)}
 .rep-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
 .rep-head .ix{flex-shrink:0;width:23px;height:23px;border-radius:7px;display:flex;align-items:center;
-  justify-content:center;background:var(--sea);color:#fff;font-size:.72rem;font-weight:700}
+  justify-content:center;background:var(--wash-b);color:var(--on-wash);font-size:.72rem;font-weight:700}
 .rep-head .nm{flex:1;min-width:0;font-size:.82rem;font-weight:700;color:var(--ink);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.iconbtn{cursor:pointer;border:1px solid var(--line);background:var(--white);border-radius:8px;
+.iconbtn{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:8px;
   width:28px;height:28px;flex-shrink:0;font-size:.85rem;color:var(--ink-soft);
   display:flex;align-items:center;justify-content:center;font-family:inherit;padding:0}
 .iconbtn:active{background:var(--sand-2)}
 .iconbtn.del{color:var(--danger)}
-.rep .f input,.rep .f textarea,.rep .f select{background:var(--white)}
+.rep .f input,.rep .f textarea,.rep .f select{background:var(--surface)}
 .addrow{margin-top:11px;width:100%;border-style:dashed}
 .emptyrep{font-size:.8rem;color:var(--ink-soft);text-align:center;padding:14px 0 2px}
 
 /* day accordion in editor */
-.daybox{border:1px solid var(--line);border-radius:14px;margin-top:11px;background:var(--white);overflow:hidden}
+.daybox{border:1px solid var(--line);border-radius:14px;margin-top:11px;background:var(--surface);overflow:hidden}
 .daybox>summary{cursor:pointer;list-style:none;padding:12px 14px;display:flex;align-items:center;gap:10px;
   background:var(--sand-2)}
 .daybox>summary::-webkit-details-marker{display:none}
 .daybox>summary .ix{flex-shrink:0;width:28px;height:28px;border-radius:9px;display:flex;align-items:center;
-  justify-content:center;background:linear-gradient(150deg,var(--sea),var(--teal));color:#fff;
+  justify-content:center;background:linear-gradient(150deg,var(--wash-b),var(--wash-c));color:#fff;
   font-family:'Fraunces',serif;font-size:.9rem;font-weight:700}
 .daybox>summary .nm{flex:1;min-width:0;font-weight:700;font-size:.92rem;color:var(--ink);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -268,7 +342,7 @@ footer .heart{color:var(--amber)}
 .savebar .btn{flex:1}
 .savebar .st{font-size:.74rem;color:var(--ink-soft);flex-shrink:0}
 .jsonarea{width:100%;min-height:52vh;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.78rem;
-  line-height:1.6;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--white);
+  line-height:1.6;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);
   color:var(--ink);resize:vertical;-webkit-appearance:none}
 .jsonarea:focus{outline:none;border-color:var(--teal)}
 .jsonerr{font-size:.8rem;color:var(--danger);margin-top:8px;white-space:pre-wrap}
@@ -284,7 +358,7 @@ footer .heart{color:var(--amber)}
    Shown on the itinerary home only while the trip is running.
    ============================================================ */
 .todaycard{margin-top:-44px;position:relative;z-index:2;
-  background:linear-gradient(150deg,#0b3d51,#1B7A8F);border:none;color:#fff;padding:15px 17px}
+  background:linear-gradient(150deg,var(--wash-a),var(--wash-c));border:none;color:#fff;padding:15px 17px}
 /* The weather card carries the hero overlap when it is first; once the
    today card sits above it, that job moves up and weather sits normally. */
 .todaycard + .wxcard{margin-top:14px}
@@ -293,24 +367,24 @@ footer .heart{color:var(--amber)}
   background:rgba(255,255,255,.16);border-radius:7px;padding:2px 8px}
 .tw-ttl{flex:1;min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tw-live{flex-shrink:0;font-size:.68rem;font-weight:700;color:var(--amber-soft);letter-spacing:.04em}
+.tw-live{flex-shrink:0;font-size:.68rem;font-weight:700;color:var(--on-wash-kicker);letter-spacing:.04em}
 .twrow{display:grid;grid-template-columns:58px 1fr;gap:11px;padding:9px 0;
   border-top:1px solid rgba(255,255,255,.14)}
 .twrow:first-of-type{border-top:none}
-.tw-l{font-size:.72rem;font-weight:700;color:var(--amber-soft);padding-top:3px}
+.tw-l{font-size:.72rem;font-weight:700;color:var(--on-wash-kicker);padding-top:3px}
 .tw-b{min-width:0}
-.tw-t{font-size:.76rem;color:#CFE4E4;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tw-t{font-size:.76rem;color:var(--on-wash-faint);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .tw-in{color:var(--amber);font-weight:700}
 .tw-n{font-size:1rem;font-weight:700;line-height:1.45;margin-top:1px}
 .twrow .gmap{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.22);color:#fff}
-.twnote{font-size:.82rem;color:#CFE4E4;padding:8px 0 2px}
+.twnote{font-size:.82rem;color:var(--on-wash-faint);padding:8px 0 2px}
 .tw-go{width:100%;margin-top:11px;background:rgba(255,255,255,.14);
   border-color:rgba(255,255,255,.26);color:#fff}
 .tw-go:active{background:rgba(255,255,255,.26)}
 
 /* stop states inside today's day view */
 .stop.is-past{opacity:.42}
-.stop.is-now{position:relative;background:#FFF8EC;margin:0 -12px;padding-left:12px;padding-right:12px;
+.stop.is-now{position:relative;background:var(--highlight);margin:0 -12px;padding-left:12px;padding-right:12px;
   border-radius:10px;box-shadow:inset 3px 0 0 var(--amber)}
 .stop.is-now .time{color:var(--star)}
 .stop.is-now h4::after{content:'　● 而家';font-size:.68rem;font-weight:700;color:var(--star);
@@ -321,9 +395,9 @@ footer .heart{color:var(--amber)}
   white-space:nowrap;vertical-align:1px}
 
 /* offline banner */
-.offbar{position:sticky;top:0;z-index:40;background:var(--ink);color:#fff;
+.offbar{position:sticky;top:0;z-index:40;background:var(--wash-a);color:var(--on-wash);
   font-size:.78rem;font-weight:500;text-align:center;padding:7px 14px}
-.offbar b{color:var(--amber-soft)}
+.offbar b{color:var(--on-wash-kicker)}
 
 /* offline map download progress */
 .dlrow{display:flex;align-items:center;gap:10px;margin-top:10px}
@@ -338,12 +412,12 @@ footer .heart{color:var(--amber)}
 .stop{grid-template-columns:60px 1fr auto}
 .tick{flex-shrink:0;align-self:start;margin-top:1px;cursor:pointer;
   width:30px;height:30px;border-radius:50%;padding:0;
-  border:1.5px solid var(--line);background:var(--white);
+  border:1.5px solid var(--line);background:var(--surface);
   display:flex;align-items:center;justify-content:center;
   font-family:inherit;transition:background .14s ease,border-color .14s ease}
 .tick span{font-size:.9rem;font-weight:700;color:var(--line);line-height:1;transition:color .14s ease}
 .tick:active{transform:scale(.9)}
-.tick.on{background:var(--teal);border-color:var(--teal)}
+.tick.on{background:var(--wash-c);border-color:var(--wash-c)}
 .tick.on span{color:#fff}
 
 .stop.done .time,.stop.done h4,.stop.done p{opacity:.5}
@@ -361,9 +435,9 @@ footer .heart{color:var(--amber)}
 .ckfilters{display:flex;gap:7px;margin-top:12px}
 .ckf{flex:1;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:700;color:var(--ink-soft);
   background:var(--sand);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
-.ckf.on{background:var(--sea);border-color:var(--sea);color:#fff}
+.ckf.on{background:var(--wash-b);border-color:var(--wash-b);color:var(--on-wash)}
 
-.ckgroup{background:var(--white);border:1px solid var(--line);border-radius:16px;
+.ckgroup{background:var(--surface);border:1px solid var(--line);border-radius:16px;
   padding:4px 16px 10px;margin-top:12px}
 .ckgh{font-family:'Fraunces',serif;font-weight:600;font-size:.98rem;color:var(--sea);
   padding:12px 0 4px}
@@ -391,7 +465,7 @@ footer .heart{color:var(--amber)}
   width:72px;height:72px;background:var(--sand-2);flex-shrink:0;line-height:0}
 .jr-th img{width:100%;height:100%;object-fit:cover;display:block}
 .jr-th:active{opacity:.8}
-.jr-note{margin-top:7px;font-size:.85rem;color:var(--ink);background:#FFF8EC;
+.jr-note{margin-top:7px;font-size:.85rem;color:var(--ink);background:var(--highlight);
   border-left:3px solid var(--amber);border-radius:0 9px 9px 0;padding:7px 11px;white-space:pre-wrap}
 .jr-acts{display:flex;gap:7px;margin-top:7px}
 .jr-b{cursor:pointer;font-family:inherit;font-size:.74rem;font-weight:700;color:var(--ink-soft);
@@ -420,9 +494,9 @@ footer .heart{color:var(--amber)}
 .schin{width:100%;font-family:inherit;font-size:1rem;color:var(--ink);
   border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--sand);
   -webkit-appearance:none}
-.schin:focus{outline:none;border-color:var(--teal);background:#fff}
+.schin:focus{outline:none;border-color:var(--teal);background:var(--surface)}
 .schres{display:flex;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
-  background:var(--white);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
   margin-top:9px;font-family:inherit;color:inherit}
 .schres:active{background:var(--sand-2)}
 .schb{flex:1;min-width:0}
@@ -464,7 +538,7 @@ body.dragging-now .rep{transition:transform .14s ease}
    UNPLANNED FINDS — places you walked into
    ============================================================ */
 .findbadge{display:inline-block;font-size:.64rem;font-weight:700;vertical-align:2px;
-  background:var(--amber);color:#3a2600;border-radius:999px;padding:1px 7px;white-space:nowrap}
+  background:var(--amber);color:var(--on-amber);border-radius:999px;padding:1px 7px;white-space:nowrap}
 .findrow{padding:12px 0 14px;border-top:1px solid var(--sand-2)}
 .findbtn{width:100%;border-style:dashed;color:var(--teal)}
 .tw-btns{display:flex;gap:8px;margin-top:11px}
@@ -482,13 +556,13 @@ body.dragging-now .rep{transition:transform .14s ease}
 }
 .sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:4px}
 .sheet-head h2{flex:1;font-family:'Fraunces',serif;font-weight:600;font-size:1.2rem;color:var(--sea)}
-.sheet .f input,.sheet .f textarea,.sheet .f select{background:var(--white)}
+.sheet .f input,.sheet .f textarea,.sheet .f select{background:var(--surface)}
 .sheet .f textarea{min-height:62px}
 .kindrow{display:flex;gap:7px;flex-wrap:wrap}
 .kindb{flex:1;min-width:72px;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:700;
-  color:var(--ink-soft);background:var(--white);border:1px solid var(--line);
+  color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);
   border-radius:11px;padding:9px 6px}
-.kindb.on{background:var(--sea);border-color:var(--sea);color:#fff}
+.kindb.on{background:var(--wash-b);border-color:var(--wash-b);color:var(--on-wash)}
 .sheet-acts{display:flex;gap:9px;margin-top:16px}
 .sheet-acts .btn{flex:1}
 
@@ -515,14 +589,14 @@ body.dragging-now .rep{transition:transform .14s ease}
    ============================================================ */
 .cusum{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
 .cupill{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 11px}
-.cupill.bad{background:#F6D9D4;color:#8C2C1C}
-.cupill.warn{background:var(--amber-soft);color:#7A4A05}
-.cupill.info{background:#DDECE9;color:var(--sea)}
+.cupill.bad{background:var(--pill-bad-bg);color:var(--pill-bad-fg)}
+.cupill.warn{background:var(--pill-warn-bg);color:var(--pill-warn-fg)}
+.cupill.info{background:var(--tint-ok);color:var(--sea)}
 
 .cubad,.cuwarn,.cuinfo{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;
-  cursor:pointer;font-family:inherit;color:inherit;background:var(--white);
+  cursor:pointer;font-family:inherit;color:inherit;background:var(--surface);
   border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-top:9px}
-.cubad{border-left:4px solid #C0392B}
+.cubad{border-left:4px solid var(--danger)}
 .cuwarn{border-left:4px solid var(--amber)}
 .cuinfo{border-left:4px solid var(--teal)}
 .cubad:active,.cuwarn:active,.cuinfo:active{background:var(--sand-2)}
@@ -534,10 +608,10 @@ body.dragging-now .rep{transition:transform .14s ease}
 
 .cuok{text-align:center;padding:26px 20px}
 .cuok-i{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;
-  background:var(--teal);color:#fff;font-size:1.4rem;font-weight:700;
+  background:var(--wash-c);color:var(--on-wash);font-size:1.4rem;font-weight:700;
   display:flex;align-items:center;justify-content:center}
 .dcard.checkup .num{background:linear-gradient(150deg,#4a8f7b,#6aae91)}
-.dcard.checkup.hasbad .num{background:linear-gradient(150deg,#C0392B,#d9614f)}
+.dcard.checkup.hasbad .num{background:linear-gradient(150deg,var(--danger),#C46A57)}
 
 /* map-link paste button in the editor */
 .maplinkb{width:100%;margin-top:11px;border-style:dashed;color:var(--teal)}
@@ -593,3 +667,57 @@ body.dragging-now .rep{transition:transform .14s ease}
 /* auto-fill coordinates card on 行程體檢 */
 .gccard{border-left:4px solid var(--teal)}
 .gccard h2{margin-bottom:4px}
+
+
+/* ============================================================
+   REDUCED MOTION
+   Smooth scrolling and card lifts are decoration; some people get
+   motion sick from them and the OS already knows who.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{
+    animation-duration:.001ms !important;animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;scroll-behavior:auto !important}
+}
+
+/* ============================================================
+   DARK THEME
+   A travel app gets used in bed, on a night flight, on a sleeper
+   train. Same watercolour, after sunset: the paper becomes deep
+   slate, the sea lifts to carry text on it, and the warm accents
+   stay warm so the thing still feels like the picture.
+
+   Declared ONCE, under [data-theme="dark"]. The OS preference is
+   resolved in JS (App.wireTheme) and written to the attribute before
+   first paint, so there is no second copy of these values under a
+   media query to drift out of step with this one.
+   ============================================================ */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  /* The sea was the darkest ink in the picture; on a dark ground it has
+     to carry text, so it lifts. The wash panels go the other way. */
+  --sea:#9CCBD8; --sea-deep:#0E1C22; --teal:#79B2C0; --teal-soft:#2E5765; --sky:#2A4451;
+  --amber:#D49C62; --amber-soft:#4A3A27; --star:#DCA264;
+  --danger:#D98574; --danger-line:#5B3A33; --olive:#9AA37C;
+
+  --sand:#101C21;        /* the page */
+  --sand-2:#18272E;
+  --surface:#17262D;     /* cards lift off it */
+  --ink:#E7EEF0; --ink-soft:#A1B4BA; --line:#2B3E47; --on-amber:#2A1C08;
+
+  --tint:#1E333C; --tint-line:#2C4751; --tint-ok:#1D3630;
+  --highlight:#2A2317;   /* sunlit paper, by lamplight */
+  --shadow:rgba(0,0,0,.4);
+  --pill-bad-bg:#4A2520; --pill-bad-fg:#F0B8AC;
+  --pill-warn-bg:#44341F; --pill-warn-fg:#E8C79A;
+
+  /* The wash sits a touch lower after dark so it does not glow. Its
+     type colours do not change: it is a dark panel in both themes. */
+  --wash-a:#102730; --wash-b:#173742; --wash-c:#2E6372;
+}
+/* Leaflet's tiles are daylight photography; take the glare off. */
+:root[data-theme="dark"] .daymap .leaflet-tile{filter:brightness(.8) saturate(.78)}
+
+/* ---------- FOOTER CONTROLS ---------- */
+.footrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:11px}

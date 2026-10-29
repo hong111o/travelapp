@@ -1,4 +1,4 @@
-/* 行程本 · photo store
+/* Travel Marvel · photo store
  *
  * Photos live in IndexedDB, not in the trip JSON. A phone photo is 4–12MB;
  * a dozen of them would blow past the ~5MB localStorage budget and would
