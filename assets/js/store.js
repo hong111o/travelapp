@@ -184,6 +184,54 @@
     return false;
   }
 
+  /* --- what it cost ---------------------------------------------
+     Spend is a record of the day, like a tick or a note, so it skips
+     updatedAt for the same reason: the plan has not changed, and
+     rebuilding the page (and its maps) under you after every entry
+     would make logging a coffee feel like an edit. */
+  function addSpend(tripId, entry) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      var amount = Number(entry && entry.amount);
+      if (!isFinite(amount) || amount <= 0) return null;
+      var spend = Array.isArray(list[i].spend) ? list[i].spend : [];
+      var row = {
+        uid: U.uid('sp'),
+        at: new Date().toISOString(),
+        amount: amount,
+        cat: String((entry && entry.cat) || 'other'),
+        note: String((entry && entry.note) || '').trim(),
+        dayId: String((entry && entry.dayId) || ''),
+        stopUid: String((entry && entry.stopUid) || '')
+      };
+      spend.push(row);
+      list[i].spend = spend;
+      return writeRaw(list) ? row : null;
+    }
+    return null;
+  }
+
+  function removeSpend(tripId, uid) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      var spend = Array.isArray(list[i].spend) ? list[i].spend : [];
+      list[i].spend = spend.filter(function (e) { return !e || e.uid !== uid; });
+      return writeRaw(list);
+    }
+    return false;
+  }
+
+  /* The budget IS part of the plan, so this one does move updatedAt. */
+  function setBudget(tripId, amount) {
+    var t = get(tripId);
+    if (!t) return false;
+    var n = Number(amount);
+    t.budget = (amount === '' || amount == null || !isFinite(n) || n <= 0) ? null : n;
+    return !!save(t);
+  }
+
   /* Record somewhere you actually went that was never in the plan.
      Slotted into the day by time so it reads in order, and marked visited
      immediately — you are standing in it. */
@@ -333,6 +381,7 @@
     all: all, get: get, save: save, remove: remove, duplicate: duplicate,
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
     setDone: setDone, setNote: setNote, addFind: addFind,
+    addSpend: addSpend, removeSpend: removeSpend, setBudget: setBudget,
     clearProgress: clearProgress, migrateUids: migrateUids,
     backupInfo: backupInfo, restoreBackup: restoreBackup,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON

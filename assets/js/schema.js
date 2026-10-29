@@ -20,6 +20,8 @@
  *     food:     { quick:[{when,name,star,note}], picks:[{uid,icon,title,desc,mapQuery}], legend },
  *     progress: { "<uid>": "<ISO timestamp>" },      // visited marks
  *     journal:  { "<uid>": {note, at} },            // notes written on the day
+ *     budget:   number | null,                     // in the trip's own currency
+ *     spend:    [{uid, at, amount, cat, note, dayId, stopUid}],
  *     notes
  *   }
  *
@@ -77,6 +79,8 @@
       food: { quick: [], picks: [], legend: '' },
       progress: {},
       journal: {},
+      budget: null,
+      spend: [],
       notes: '',
       updatedAt: new Date().toISOString()
     };
@@ -238,6 +242,20 @@
       },
       progress: {},
       journal: {},
+      /* What the trip actually cost. Written on the day, like a tick or
+         a note, so it is a record rather than part of the plan. */
+      budget: num(t.budget),
+      spend: arr(t.spend).map(function (e) {
+        return {
+          uid: str(e && e.uid) || U.uid('sp'),
+          at: str(e && e.at) || new Date().toISOString(),
+          amount: num(e && e.amount),
+          cat: str(e && e.cat) || 'other',
+          note: str(e && e.note),
+          dayId: str(e && e.dayId),
+          stopUid: str(e && e.stopUid)
+        };
+      }).filter(function (e) { return e.amount != null; }),
       notes: str(t.notes),
       updatedAt: str(t.updatedAt) || new Date().toISOString()
     };
@@ -260,6 +278,7 @@
     out.days.forEach(function (d) {
       d.stops.forEach(function (s) { claim(s, 's'); });
     });
+    out.spend.forEach(function (e) { claim(e, 'sp'); });
     out.food.picks.forEach(function (p) { claim(p, 'p'); });
 
     /* Carry over only the ticks that still point at something. Editing a

@@ -252,28 +252,21 @@
         '</div><div class="arrow">›</div></button>';
     }).join('');
 
-    cards += checkCardHTML(trip);
-    cards += checkupCardHTML(trip);
+    if (!cards) return '';
+    /* The days alone. The whole-trip tools used to be appended to this
+       same stack in the same style, so on a ten-day trip the toolbox
+       sat under ten day cards and looked like an eleventh day. They
+       live in the tab bar now, and what is left here is a sequence. */
+    return '<h2 class="secttl">逐日行程</h2>' +
+      '<div class="daycards">' + cards + '</div>';
+  }
 
-    /* A search box over three stops is just a slower way to scroll, so it
-       only appears once a trip is big enough to lose things in. */
-    var searchable = searchIndex(trip).length;
-    if (searchable > 5 && !readOnly) {
-      cards += '<button class="dcard search" data-act="search">' +
-        '<div class="num"><b>🔍</b></div>' +
-        '<div class="txt"><div class="d">全程</div><div class="t">搵嘢</div>' +
-        '<div class="s">' + searchable + ' 個景點 · 餐廳 · 筆記</div></div>' +
-        '<div class="arrow">›</div></button>';
-    }
-
-    var hasFood = trip.food.quick.length || trip.food.picks.length;
-    if (hasFood) {
-      cards += '<button class="dcard food" data-act="food">' +
-        '<div class="num"><b>◎</b><small>food</small></div>' +
-        '<div class="txt"><div class="d">全程</div><div class="t">美食速查</div>' +
-        '<div class="s">每餐 Plan A + 備選一覽</div></div><div class="arrow">›</div></button>';
-    }
-    return cards ? '<div class="daycards">' + cards + '</div>' : '';
+  /* The two that genuinely belong on the home screen, because they are
+     about this trip's state rather than a place to go: how much of it
+     you have done, and whether anything in it looks wrong. */
+  function statusCardsHTML(trip) {
+    var cards = checkCardHTML(trip) + checkupCardHTML(trip);
+    return cards ? '<div class="daycards statuscards">' + cards + '</div>' : '';
   }
 
   /* Offer the tile download only when the trip actually has maps to cache,
@@ -351,6 +344,7 @@
         hotelsHTML(trip) +
         infoCardsHTML(trip) +
         dayCardsHTML(trip) +
+        statusCardsHTML(trip) +
         linksHTML(trip) +
         todosHTML(trip) +
         shareHTML(trip) +
@@ -495,11 +489,195 @@
         }).join('') +
         (readOnly ? '' : '<div class="findrow">' +
           '<button class="btn findbtn" data-act="addfind" data-day="' + esc(day.id) + '">' +
-            '＋ 記低一個即興發現</button>' +
+            '＋ 即興發現</button>' +
+          '<button class="btn findbtn" data-act="spend-add" data-day="' + esc(day.id) + '">' +
+            '＋ 記一筆</button>' +
         '</div>') +
       '</div>' +
       map +
+      dayStepHTML(trip, index) +
       '</div></div>';
+  }
+
+  /* A day is the unit people actually move through, so one should lead
+     to the next. Without this, Day 2 to Day 3 meant going back to the
+     home screen and finding it in the list. */
+  function dayStepHTML(trip, index) {
+    var prev = trip.days[index - 1], next = trip.days[index + 1];
+    if (!prev && !next) return '';
+    function side(day, i, dir, label) {
+      if (!day) return '<span class="daystep-x"></span>';
+      var name = U.plain(day.title || ('Day ' + (i + 1)));
+      return '<button class="daystep-b" data-act="day" data-day="' + esc(day.id) + '">' +
+        '<span class="daystep-d">' + label + '</span>' +
+        '<span class="daystep-t">' + esc(name) + '</span></button>';
+    }
+    return '<nav class="daystep" aria-label="前後一日">' +
+      side(prev, index - 1, 'prev', '‹ 前一日') +
+      side(next, index + 1, 'next', '後一日 ›') +
+      '</nav>';
+  }
+
+  /* --- what it cost ---------------------------------------------
+     The FX widget converts one number, which is a calculator. The
+     question on a trip is how much has gone so far and whether that is
+     fine, so this is a running total with a per-day and per-category
+     breakdown under it. */
+
+  var CATS = [
+    { key: 'food',  icon: '🍽️', label: '食' },
+    { key: 'trans', icon: '🚆', label: '車' },
+    { key: 'stay',  icon: '🏨', label: '住' },
+    { key: 'see',   icon: '🎟️', label: '玩' },
+    { key: 'shop',  icon: '🛍️', label: '買' },
+    { key: 'other', icon: '💠', label: '其他' }
+  ];
+
+  function catOf(key) {
+    for (var i = 0; i < CATS.length; i++) if (CATS[i].key === key) return CATS[i];
+    return CATS[CATS.length - 1];
+  }
+
+  /* Money is counted in whole units of the trip's own currency, with
+     decimals only where they exist — "€12" not "€12.00", but "€12.50"
+     stays. */
+  function moneyText(n, cur) {
+    if (n == null || !isFinite(n)) return '';
+    var rounded = Math.round(n * 100) / 100;
+    var body = (rounded % 1 === 0) ? String(rounded) : rounded.toFixed(2);
+    return (cur ? esc(cur) + ' ' : '') + body;
+  }
+
+  function spendTotals(trip) {
+    var total = 0, byDay = {}, byCat = {};
+    trip.spend.forEach(function (e) {
+      total += e.amount;
+      if (e.dayId) byDay[e.dayId] = (byDay[e.dayId] || 0) + e.amount;
+      byCat[e.cat] = (byCat[e.cat] || 0) + e.amount;
+    });
+    return { total: total, byDay: byDay, byCat: byCat };
+  }
+
+  function moneyHTML(trip) {
+    if (readOnly) return '';
+    var cur = trip.currency.base || '';
+    var tot = spendTotals(trip);
+    var budget = trip.budget;
+
+    var head = '<div class="card moneysum">' +
+      '<div class="ms-t">用咗</div>' +
+      '<div class="ms-n">' + moneyText(tot.total, cur) + '</div>';
+    if (budget) {
+      var pct = Math.min(100, Math.round((tot.total / budget) * 100));
+      var left = budget - tot.total;
+      head += '<div class="ms-bar"><i style="width:' + pct + '%" class="' +
+          (tot.total > budget ? 'over' : '') + '"></i></div>' +
+        '<div class="ms-b">' +
+          (left >= 0 ? '仲有 ' + moneyText(left, cur) : '超咗 ' + moneyText(-left, cur)) +
+          ' · 預算 ' + moneyText(budget, cur) + '</div>';
+    }
+    head += '<div class="ms-row">' +
+      '<button class="btn btn-primary" data-act="spend-add">＋ 記一筆</button>' +
+      '<button class="btn" data-act="budget">' + (budget ? '改預算' : '設預算') + '</button>' +
+      '</div></div>';
+
+    var cats = '';
+    var catRows = CATS
+      .map(function (c) { return { c: c, n: tot.byCat[c.key] || 0 }; })
+      .filter(function (r) { return r.n > 0; })
+      .sort(function (a, b) { return b.n - a.n; });
+    if (catRows.length) {
+      cats = '<div class="card"><h2>邊度用咗</h2>' +
+        catRows.map(function (r) {
+          var pct = tot.total ? Math.round((r.n / tot.total) * 100) : 0;
+          return '<div class="catrow"><span class="ci">' + r.c.icon + '</span>' +
+            '<span class="cn">' + esc(r.c.label) + '</span>' +
+            '<span class="cb"><i style="width:' + pct + '%"></i></span>' +
+            '<span class="cv">' + moneyText(r.n, cur) + '</span></div>';
+        }).join('') + '</div>';
+    }
+
+    var days = '';
+    var dayRows = trip.days
+      .map(function (d, i) { return { d: d, i: i, n: tot.byDay[d.id] || 0 }; })
+      .filter(function (r) { return r.n > 0; });
+    if (dayRows.length) {
+      days = '<div class="card"><h2>逐日</h2>' +
+        dayRows.map(function (r) {
+          return '<button class="kv kvb" data-act="day" data-day="' + esc(r.d.id) + '">' +
+            '<span class="k">Day ' + (r.i + 1) +
+              (r.d.title ? ' · ' + esc(U.plain(r.d.title)) : '') + '</span>' +
+            '<span class="v">' + moneyText(r.n, cur) + '</span></button>';
+        }).join('') + '</div>';
+    }
+
+    var list = '';
+    if (trip.spend.length) {
+      var rows = trip.spend.slice().sort(function (a, b) {
+        return String(b.at).localeCompare(String(a.at));
+      });
+      list = '<div class="card"><h2>每一筆</h2>' +
+        rows.map(function (e) {
+          var c = catOf(e.cat);
+          var where = '';
+          if (e.dayId) {
+            for (var i = 0; i < trip.days.length; i++) {
+              if (trip.days[i].id === e.dayId) { where = 'Day ' + (i + 1); break; }
+            }
+          }
+          return '<div class="sprow"><span class="si">' + c.icon + '</span>' +
+            '<span class="st">' + (e.note ? esc(e.note) : esc(c.label)) +
+              '<small>' + esc([where, U.shortDateTime(e.at)].filter(Boolean).join(' · ')) + '</small></span>' +
+            '<span class="sv">' + moneyText(e.amount, cur) + '</span>' +
+            '<button class="iconbtn" data-act="spend-del" data-uid="' + esc(e.uid) +
+              '" aria-label="刪除呢筆">✕</button></div>';
+        }).join('') + '</div>';
+    } else {
+      list = '<div class="card empty"><h2>仲未記過數</h2>' +
+        '<p class="tinynote">撳「＋ 記一筆」，或者喺每一日嘅行程度直接記。</p></div>';
+    }
+
+    return '<div class="subview" data-sub="money"><div class="wrap">' +
+      '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
+        '<span class="sp"></span><span class="bt">💰 使費</span></div>' +
+      head + cats + days + list +
+      '</div></div>';
+  }
+
+  /* Two taps from anywhere: amount, category, done. The day is filled in
+     from wherever you pressed it, so logging a coffee on Day 3 does not
+     start with choosing Day 3. */
+  function spendSheetHTML(trip, dayId) {
+    var cur = trip.currency.base || '';
+    var days = trip.days.map(function (d, i) {
+      var label = 'Day ' + (i + 1) + (d.title ? ' · ' + U.plain(d.title) : '');
+      return '<option value="' + esc(d.id) + '"' + (d.id === dayId ? ' selected' : '') + '>' +
+        esc(label) + '</option>';
+    }).join('');
+
+    return '<div class="sheet" id="spend-sheet"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2>＋ 記一筆</h2>' +
+        '<button class="iconbtn" data-spend="close" aria-label="閂">✕</button></div>' +
+
+      '<div class="f"><label>幾多錢' + (cur ? ' <span class="opt">（' + esc(cur) + '）</span>' : '') + '</label>' +
+        '<input id="spend-amt" type="text" inputmode="decimal" placeholder="0" autocomplete="off"></div>' +
+
+      '<div class="f"><label>類別</label><div class="kindrow">' +
+        CATS.map(function (c, i) {
+          return '<button class="kindb' + (i === 0 ? ' on' : '') + '" data-cat="' + esc(c.key) + '">' +
+            c.icon + ' ' + esc(c.label) + '</button>';
+        }).join('') + '</div></div>' +
+
+      '<div class="f"><label>邊一日</label><select id="spend-day">' +
+        '<option value="">唔關邊日事</option>' + days + '</select></div>' +
+
+      '<div class="f"><label>備註 <span class="opt">（可留空）</span></label>' +
+        '<input id="spend-note" type="text" placeholder="例如 午餐、火車飛" autocomplete="off"></div>' +
+
+      '<div class="sheet-foot">' +
+        '<button class="btn" data-spend="close">取消</button>' +
+        '<button class="btn btn-primary" data-spend="save">記低</button>' +
+      '</div></div></div>';
   }
 
   /* --- checklist ------------------------------------------------
@@ -843,14 +1021,34 @@
 
   /* --- entry point --------------------------------------------- */
 
+  /* The toolbox, always within reach. Everything used to route through
+     the home screen: to get from a day to the food list you went back,
+     scrolled past every day card, and found it at the bottom. */
+  function tabBarHTML(t) {
+    if (readOnly) return '';
+    var tabs = [{ tab: 'home', icon: '📋', label: '行程' }];
+    if (t.food.quick.length || t.food.picks.length) tabs.push({ tab: 'food', icon: '◎', label: '美食' });
+    tabs.push({ tab: 'money', icon: '💰', label: '使費' });
+    tabs.push({ tab: 'check', icon: '✓', label: '清單' });
+    if (searchIndex(t).length > 5) tabs.push({ tab: 'search', icon: '🔍', label: '搵嘢' });
+    return '<nav class="tabbar" aria-label="行程導覽">' +
+      tabs.map(function (x) {
+        return '<button class="tab" data-tab="' + x.tab + '" data-act="' + x.tab + '">' +
+          '<span class="ti" aria-hidden="true">' + x.icon + '</span>' +
+          '<span class="tl">' + x.label + '</span></button>';
+      }).join('') + '</nav>';
+  }
+
   function trip(t, container) {
     activeTrip = t;
     container.innerHTML = homeHTML(t) +
       t.days.map(function (d, i) { return dayHTML(t, d, i); }).join('') +
       foodHTML(t) +
+      moneyHTML(t) +
       checklistHTML(t) +
       searchHTML(t) +
-      checkupHTML(t);
+      checkupHTML(t) +
+      tabBarHTML(t);
   }
 
   /* Repaint just the counters after a tick, so the page does not rebuild. */
@@ -886,6 +1084,8 @@
     setReadOnly: function (v) { readOnly = !!v; },
     searchIndex: searchIndex, searchResultHTML: searchResultHTML,
     findSheetHTML: findSheetHTML,
+    spendSheetHTML: spendSheetHTML, moneyHTML: moneyHTML,
+    spendTotals: spendTotals, moneyText: moneyText,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
   };
 })(window);

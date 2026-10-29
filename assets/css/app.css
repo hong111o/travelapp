@@ -539,7 +539,8 @@ body.dragging-now .rep{transition:transform .14s ease}
    ============================================================ */
 .findbadge{display:inline-block;font-size:.64rem;font-weight:700;vertical-align:2px;
   background:var(--amber);color:var(--on-amber);border-radius:999px;padding:1px 7px;white-space:nowrap}
-.findrow{padding:12px 0 14px;border-top:1px solid var(--sand-2)}
+.findrow{display:flex;gap:9px;flex-wrap:wrap;padding:12px 0 14px;border-top:1px solid var(--sand-2)}
+.findrow .btn{flex:1;min-width:150px}
 .findbtn{width:100%;border-style:dashed;color:var(--teal)}
 .tw-btns{display:flex;gap:8px;margin-top:11px}
 .tw-btns .btn{flex:1;margin-top:0}
@@ -626,7 +627,7 @@ body.dragging-now .rep{transition:transform .14s ease}
   .wrap { max-width: none; padding: 0 }
 
   /* Anything that only makes sense on a screen */
-  .backbar, .hero-top, .btn, .tick, .jr-acts, .findrow, .arrow,
+  .tabbar, .daystep, .backbar, .hero-top, .btn, .tick, .jr-acts, .findrow, .arrow,
   .daycards, .linkrow, .toast, .offbar, .sheet, .lightbox,
   #offline-card, #share-card, #paste-panel, .ckfilters, .cusum,
   .daymap, .maphint, .leaflet-container, .fxgrid, .wxcard,
@@ -721,3 +722,76 @@ body.dragging-now .rep{transition:transform .14s ease}
 
 /* ---------- FOOTER CONTROLS ---------- */
 .footrow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:11px}
+
+/* ============================================================
+   TAB BAR
+   Everything used to route through the home screen: to reach the
+   food list from a day you went back, scrolled past every day
+   card, and found it at the bottom. Four destinations, always
+   in reach, clear of the home indicator.
+   ============================================================ */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;
+  background:color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  cursor:pointer;border:none;background:none;font-family:inherit;
+  min-height:54px;padding:7px 4px 6px;color:var(--ink-soft)}
+.tab .ti{font-size:1.1rem;line-height:1}
+.tab .tl{font-size:.68rem;font-weight:700;letter-spacing:.02em}
+.tab.on{color:var(--sea)}
+.tab.on .ti{transform:translateY(-1px)}
+/* The bar floats over the page, so the page needs room under it. */
+#view-trip .wrap{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+
+/* ---------- PREV / NEXT DAY ---------- */
+.daystep{display:flex;gap:10px;margin-top:16px}
+.daystep-x{flex:1}
+.daystep-b{flex:1;display:flex;flex-direction:column;gap:2px;cursor:pointer;text-align:left;
+  font-family:inherit;color:inherit;background:var(--surface);
+  border:1px solid var(--line);border-radius:14px;padding:11px 14px;min-height:44px}
+.daystep-b:active{background:var(--sand-2)}
+.daystep-b:last-child{text-align:right}
+.daystep-d{font-size:.72rem;font-weight:700;color:var(--teal)}
+.daystep-t{font-size:.92rem;font-weight:700;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- MONEY ---------- */
+.moneysum{text-align:center}
+.ms-t{font-size:.78rem;font-weight:700;color:var(--ink-soft);letter-spacing:.06em}
+.ms-n{font-family:'Fraunces',serif;font-weight:900;font-size:clamp(2rem,10vw,2.8rem);
+  color:var(--sea);line-height:1.1;margin:2px 0 4px}
+.ms-bar{height:8px;border-radius:999px;background:var(--sand-2);overflow:hidden;margin:10px 0 7px}
+.ms-bar i{display:block;height:100%;border-radius:999px;background:var(--teal)}
+.ms-bar i.over{background:var(--danger)}
+.ms-b{font-size:.84rem;color:var(--ink-soft)}
+.ms-row{display:flex;gap:9px;justify-content:center;margin-top:13px;flex-wrap:wrap}
+
+.catrow{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid var(--sand-2)}
+.catrow:first-of-type{border-top:none}
+.catrow .ci{font-size:1rem;width:1.4em;text-align:center}
+.catrow .cn{font-size:.88rem;font-weight:700;color:var(--ink);width:2.6em;flex-shrink:0}
+.catrow .cb{flex:1;height:7px;border-radius:999px;background:var(--sand-2);overflow:hidden;min-width:40px}
+.catrow .cb i{display:block;height:100%;border-radius:999px;background:var(--teal-soft)}
+.catrow .cv{font-size:.88rem;font-weight:700;color:var(--sea);flex-shrink:0;
+  font-variant-numeric:tabular-nums}
+
+.kvb{width:100%;cursor:pointer;font-family:inherit;border:none;background:none;
+  border-top:1px solid var(--sand-2);text-align:left;min-height:44px}
+.kvb:first-of-type{border-top:none}
+.kvb:active{background:var(--sand-2)}
+
+.sprow{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--sand-2)}
+.sprow:first-of-type{border-top:none}
+.sprow .si{font-size:1rem;width:1.5em;text-align:center;flex-shrink:0}
+.sprow .st{flex:1;min-width:0;font-size:.9rem;font-weight:700;color:var(--ink)}
+.sprow .st small{display:block;font-weight:400;font-size:.74rem;color:var(--ink-soft)}
+.sprow .sv{font-size:.92rem;font-weight:700;color:var(--sea);flex-shrink:0;
+  font-variant-numeric:tabular-nums}
+
+/* A heading over the day sequence, so it reads as the itinerary rather
+   than as one more stack of cards among the info cards above it. */
+.secttl{font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;color:var(--sea);
+  margin:22px 0 -4px;letter-spacing:.01em}
+.statuscards{margin-top:16px}

@@ -53,7 +53,45 @@
     });
   }
 
+  /* Where you were on each screen of the current trip. The app used to
+     end every navigation with scrollTo(0, 0), so coming back from a day
+     threw away your place in a long home list. Keyed by subview and
+     cleared when the trip changes. */
+  var scrollMemory = {};
+  var lastSub = null;
+
+  function rememberScroll() {
+    if (lastSub) scrollMemory[lastSub] = window.pageYOffset || 0;
+  }
+
+  /* Instantly, because the page sets scroll-behavior:smooth and nobody
+     wants to watch the list slide past on every back press.
+
+     Swapping which subview is displayed does not flush layout, so a
+     scroll issued straight afterwards is clamped against the height of
+     the screen we just left — going back to a long home screen from a
+     short day landed at 163px instead of 900. Reading offsetHeight
+     forces the reflow; the extra pass on the next frame covers a map or
+     an image that only settles after it. */
+  function setScroll(y) {
+    try { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); }
+    catch (e) { window.scrollTo(0, y); }
+  }
+
+  function restoreScroll(at) {
+    setScroll(at);
+    if (!at) return;
+    /* Swapping which subview is shown does not flush layout, so a scroll
+       issued in the same task can be clamped against the height of the
+       screen we just left. One pass on the next frame, once the new one
+       has been laid out, is enough. */
+    requestAnimationFrame(function () {
+      if (Math.abs((window.pageYOffset || 0) - at) > 2) setScroll(at);
+    });
+  }
+
   function showSub(subId) {
+    rememberScroll();
     var subs = document.querySelectorAll('#view-trip .subview');
     var matched = false;
     for (var i = 0; i < subs.length; i++) {
@@ -64,9 +102,31 @@
     }
     if (!matched && subs.length) {
       subs[0].style.display = 'block';
-      return subs[0].getAttribute('data-sub');
+      lastSub = subs[0].getAttribute('data-sub');
+      return lastSub;
     }
+    lastSub = subId;
     return subId;
+  }
+
+  /* Which tab a subview belongs under, so the bar can light the right
+     one from any screen — a day screen is still "行程". */
+  function tabFor(sub) {
+    if (sub === 'food' || sub === 'check' || sub === 'checkup' ||
+        sub === 'search' || sub === 'money') return sub;
+    return 'home';
+  }
+
+  function paintTabs(sub) {
+    var bar = document.querySelector('#view-trip .tabbar');
+    if (!bar) return;
+    var want = tabFor(sub);
+    var tabs = bar.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute('data-tab') === want;
+      tabs[i].classList.toggle('on', on);
+      tabs[i].setAttribute('aria-current', on ? 'page' : 'false');
+    }
   }
 
   function go(hash) {
@@ -126,6 +186,8 @@
       Widgets.stopAll();
       Widgets.resetMaps();
       current = trip;
+      scrollMemory = {};        /* positions belong to the trip we are leaving */
+      lastSub = null;
       searchRows = null;   /* index is per-trip and per-edit */
       Render.trip(trip, U.el('view-trip'));
       showView('trip');
@@ -139,7 +201,10 @@
     }
 
     var actual = showSub(subId || 'home');
-    window.scrollTo(0, 0);
+    paintTabs(actual);
+    /* Going somewhere new starts at the top; going back to a screen you
+       have already read puts you where you left it. */
+    restoreScroll(scrollMemory[actual] || 0);
 
     Render.applyDayProgress(trip);
     applyPendingFlash();
@@ -170,16 +235,78 @@
     }
   }
 
+  /* --- swipe between days ------------------------------------------
+     A day is the unit you move through, and on a phone the natural way
+     to move is sideways. Deliberately narrow: only on a day screen,
+     only a clearly horizontal drag, and never when the gesture starts
+     on the map, which does its own panning. */
+  function wireSwipe() {
+    var view = U.el('view-trip');
+    if (!view) return;
+    var x0 = 0, y0 = 0, tracking = false;
+
+    view.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      var t = e.target;
+      if (t.closest && (t.closest('.daymap') || t.closest('.sheet') ||
+                        t.closest('input') || t.closest('textarea'))) {
+        tracking = false;
+        return;
+      }
+      x0 = e.touches[0].clientX;
+      y0 = e.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+
+    view.addEventListener('touchend', function (e) {
+      if (!tracking) return;
+      tracking = false;
+      if (!current || !e.changedTouches.length) return;
+
+      var dx = e.changedTouches[0].clientX - x0;
+      var dy = e.changedTouches[0].clientY - y0;
+      /* A real sideways swipe: far enough, and more across than down,
+         so scrolling the page never counts. */
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+
+      var i = -1;
+      for (var k = 0; k < current.days.length; k++) {
+        if (current.days[k].id === lastSub) { i = k; break; }
+      }
+      if (i < 0) return;                       /* not on a day screen */
+
+      var to = current.days[dx < 0 ? i + 1 : i - 1];
+      if (!to) return;
+      go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(to.id));
+    }, { passive: true });
+  }
+
   function showLibrary() { go('#/'); }
 
   /* --- routing --------------------------------------------------- */
+
+  /* Opening a trip that is running should put you in today, not on the
+     index — during the trip the question is almost always "what now".
+     Only on the first open: once you have navigated, the hash says
+     where you are and this is not consulted again. */
+  var landed = {};
+
+  function landingSub(id) {
+    if (landed[id]) return 'home';
+    landed[id] = true;
+    var trip = Store.get(id);
+    if (!trip) return 'home';
+    var today = U.todaysDay(trip);
+    return today ? today.id : 'home';
+  }
 
   function route() {
     var hash = location.hash.replace(/^#\/?/, '');
     var parts = hash.split('/').filter(Boolean);
 
     if (parts[0] === 'trip' && parts[1]) {
-      openTrip(decodeURIComponent(parts[1]), parts[2] ? decodeURIComponent(parts[2]) : 'home');
+      var id = decodeURIComponent(parts[1]);
+      openTrip(id, parts[2] ? decodeURIComponent(parts[2]) : landingSub(id));
       return;
     }
 
@@ -320,6 +447,116 @@
     U.el('find-gps').addEventListener('click', locateForFind);
     U.el('find-link').addEventListener('click', linkForFind);
     U.el('find-save').addEventListener('click', saveFind);
+  }
+
+  /* --- what it cost ---------------------------------------------- */
+
+  function openSpendSheet(dayId) {
+    if (!current) return;
+    if (dayId === undefined) {
+      /* Pressed from a day screen, that day; from anywhere else, today
+         if the trip is running, otherwise nothing preselected. */
+      var sub = lastSub || '';
+      var onDay = current.days.filter(function (d) { return d.id === sub; })[0];
+      var today = U.todaysDay(current);
+      dayId = onDay ? onDay.id : (today ? today.id : '');
+    }
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.spendSheetHTML(current, dayId);
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    setTimeout(function () {
+      var a = U.el('spend-amt');
+      if (a) a.focus();
+    }, 80);
+
+    sheet.addEventListener('click', function (e) {
+      var cat = e.target.closest ? e.target.closest('[data-cat]') : null;
+      if (cat) {
+        var all = sheet.querySelectorAll('.kindb');
+        for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === cat);
+        return;
+      }
+      var act = e.target.closest ? e.target.closest('[data-spend]') : null;
+      if (act && act.getAttribute('data-spend') === 'save') { saveSpend(); return; }
+      if ((act && act.getAttribute('data-spend') === 'close') || e.target === sheet) closeSpendSheet();
+    });
+
+    /* Enter on the amount is the whole point of "two taps". */
+    var amt = U.el('spend-amt');
+    if (amt) {
+      amt.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); saveSpend(); }
+      });
+    }
+  }
+
+  function closeSpendSheet() {
+    var sheet = U.el('spend-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  function saveSpend() {
+    if (!current) return;
+    var raw = (U.el('spend-amt').value || '').trim().replace(/[^0-9.]/g, '');
+    var amount = Number(raw);
+    if (!raw || !isFinite(amount) || amount <= 0) {
+      U.toast('填個金額先', true);
+      U.el('spend-amt').focus();
+      return;
+    }
+    var catBtn = document.querySelector('#spend-sheet .kindb.on');
+    var row = Store.addSpend(current.id, {
+      amount: amount,
+      cat: catBtn ? catBtn.getAttribute('data-cat') : 'other',
+      note: U.el('spend-note').value,
+      dayId: U.el('spend-day').value
+    });
+    if (!row) { U.toast('記唔到', true); return; }
+    closeSpendSheet();
+    refreshMoney();
+    U.toast('記低咗 ' + Render.moneyText(amount, current.currency.base));
+  }
+
+  function deleteSpend(uid) {
+    if (!current || !uid) return;
+    if (!Store.removeSpend(current.id, uid)) return;
+    refreshMoney();
+  }
+
+  function editBudget() {
+    if (!current) return;
+    var cur = current.currency.base || '';
+    var now = current.budget ? String(current.budget) : '';
+    var next = prompt('成個行程嘅預算' + (cur ? '（' + cur + '）' : '') + '：\n留空就當冇預算。', now);
+    if (next === null) return;
+    if (!Store.setBudget(current.id, next.trim())) { U.toast('改唔到', true); return; }
+    /* The budget is part of the plan, so the trip was re-saved; pick the
+       new copy up rather than repainting a stale one. */
+    current = Store.get(current.id);
+    refreshMoney();
+  }
+
+  /* Repaint the money screen in place. Spend does not move updatedAt, so
+     openTrip would not rebuild, and we do not want it to: rebuilding the
+     trip would throw away every map that is already drawn. */
+  function refreshMoney() {
+    if (!current) return;
+    var fresh = Store.get(current.id);
+    if (!fresh) return;
+    current = fresh;
+    Render.setActiveTrip(fresh);
+    var view = document.querySelector('#view-trip .subview[data-sub="money"]');
+    if (!view) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.moneyHTML(fresh);
+    var next = wrap.firstChild;
+    if (!next) return;
+    var wasActive = view.classList.contains('active');
+    next.classList.toggle('active', wasActive);
+    next.style.display = wasActive ? 'block' : 'none';
+    view.replaceWith(next);
   }
 
   function closeFindSheet() {
@@ -728,6 +965,10 @@
     else if (act === 'search') { go('#/trip/' + encodeURIComponent(current.id) + '/search'); }
     else if (act === 'addfind') { e.preventDefault(); openFindSheet(btn.getAttribute('data-day')); }
     else if (act === 'checkup') { go('#/trip/' + encodeURIComponent(current.id) + '/checkup'); }
+    else if (act === 'money') { go('#/trip/' + encodeURIComponent(current.id) + '/money'); }
+    else if (act === 'spend-add') { e.preventDefault(); openSpendSheet(); }
+    else if (act === 'spend-del') { e.preventDefault(); deleteSpend(btn.getAttribute('data-uid')); }
+    else if (act === 'budget') { e.preventDefault(); editBudget(); }
     else if (act === 'share') { e.preventDefault(); shareTrip(btn); }
     else if (act === 'print') { e.preventDefault(); printTrip(); }
     else if (act === 'geocode') { e.preventDefault(); geocodeTrip(btn); }
@@ -924,6 +1165,7 @@
 
     wireTheme();
     wireRestore();
+    wireSwipe();
 
     route();
   }
