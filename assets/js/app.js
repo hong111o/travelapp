@@ -57,6 +57,11 @@
      end every navigation with scrollTo(0, 0), so coming back from a day
      threw away your place in a long home list. Keyed by subview and
      cleared when the trip changes. */
+  /* Releases for whichever dialogs are open, so closing one undoes
+     exactly what opening it did. Declared up here because the first
+     sheet to use it is defined above the ones that follow. */
+  var releaseTrap = {};
+
   var scrollMemory = {};
   var lastSub = null;
 
@@ -114,6 +119,8 @@
   function tabFor(sub) {
     if (sub === 'food' || sub === 'check' || sub === 'checkup' ||
         sub === 'search' || sub === 'money') return sub;
+    /* A day screen, or the bookings list reached from the home card,
+       is still somewhere inside 行程. */
     return 'home';
   }
 
@@ -428,6 +435,7 @@
     wrap.innerHTML = Render.findSheetHTML(current, dayId);
     var sheet = wrap.firstChild;
     document.body.appendChild(sheet);
+    releaseTrap['find'] = U.trapFocus(sheet, closeFindSheet);
     setTimeout(function () {
       var n = U.el('find-name');
       if (n) n.focus();
@@ -449,6 +457,138 @@
     U.el('find-save').addEventListener('click', saveFind);
   }
 
+  /* --- booked, and packed ----------------------------------------- */
+
+  function openBookingSheet() {
+    if (!current) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.bookingSheetHTML();
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap['bk'] = U.trapFocus(sheet, closeBookingSheet);
+    setTimeout(function () {
+      var el = U.el('bk-title');
+      if (el) el.focus();
+    }, 80);
+
+    sheet.addEventListener('click', function (e) {
+      var act = e.target.closest ? e.target.closest('[data-bk]') : null;
+      if (act && act.getAttribute('data-bk') === 'save') { saveBooking(); return; }
+      if ((act && act.getAttribute('data-bk') === 'close') || e.target === sheet) closeBookingSheet();
+    });
+  }
+
+  function closeBookingSheet() {
+    if (releaseTrap['bk']) { releaseTrap['bk'](); releaseTrap['bk'] = null; }
+    var sheet = U.el('bk-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  function saveBooking() {
+    if (!current) return;
+    var title = (U.el('bk-title').value || '').trim();
+    var when = (U.el('bk-when').value || '').trim();
+    if (!title && !when) {
+      U.toast('至少寫個名或者時間', true);
+      U.el('bk-title').focus();
+      return;
+    }
+    var row = Store.addBooking(current.id, {
+      title: title, when: when,
+      at: (U.el('bk-at').value || '').trim(),
+      ref: U.el('bk-ref').value,
+      note: U.el('bk-note').value
+    });
+    if (!row) { U.toast('加唔到', true); return; }
+    closeBookingSheet();
+    /* A booking is part of the plan, so the trip moved: reopen rather
+       than patch, which also rebuilds the home card's countdown. */
+    openTrip(current.id, 'bookings');
+    U.toast('加咗');
+  }
+
+  function deleteBooking(uid) {
+    if (!current || !uid) return;
+    if (!Store.removeBooking(current.id, uid)) return;
+    openTrip(current.id, 'bookings');
+  }
+
+  /* A booking reference exists to be read out at a desk. */
+  function copyRef(ref, btn) {
+    if (!ref) return;
+    var done = function () {
+      U.toast('Copy 咗 ' + ref);
+      if (btn) {
+        btn.classList.add('copied');
+        setTimeout(function () { btn.classList.remove('copied'); }, 1200);
+      }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ref).then(done, function () { U.toast('copy 唔到', true); });
+      return;
+    }
+    /* Older WebKit, and any page not served over https. */
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = ref;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      done();
+    } catch (e) { U.toast('copy 唔到', true); }
+  }
+
+  function addPacking() {
+    if (!current) return;
+    var input = U.el('pk-new');
+    if (!input) return;
+    var text = (input.value || '').trim();
+    if (!text) { input.focus(); return; }
+    if (!Store.addPacking(current.id, text)) { U.toast('加唔到', true); return; }
+    input.value = '';
+    refreshPacking(true);
+  }
+
+  function togglePacked(uid) {
+    if (!current || !uid) return;
+    var item = current.packing.filter(function (x) { return x.uid === uid; })[0];
+    if (!item) return;
+    if (!Store.setPacked(current.id, uid, !item.done)) return;
+    refreshPacking();
+  }
+
+  function deletePacking(uid) {
+    if (!current || !uid) return;
+    if (!Store.removePacking(current.id, uid)) return;
+    refreshPacking();
+  }
+
+  /* Repaint just the packing card. Rebuilding the whole trip would throw
+     away every map already drawn, and ticking something off is not an
+     edit to the plan. */
+  function refreshPacking(focusInput) {
+    if (!current) return;
+    var fresh = Store.get(current.id);
+    if (!fresh) return;
+    current = fresh;
+    Render.setActiveTrip(fresh);
+    var card = document.querySelector('#view-trip .subview[data-sub="check"] .packcard');
+    if (!card) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.checklistHTML(fresh);
+    var next = wrap.querySelector('.packcard');
+    if (!next) return;
+    card.replaceWith(next);
+    if (focusInput) {
+      var input = U.el('pk-new');
+      if (input) input.focus();
+    }
+  }
+
   /* --- what it cost ---------------------------------------------- */
 
   function openSpendSheet(dayId) {
@@ -466,6 +606,7 @@
     wrap.innerHTML = Render.spendSheetHTML(current, dayId);
     var sheet = wrap.firstChild;
     document.body.appendChild(sheet);
+    releaseTrap['spend'] = U.trapFocus(sheet, closeSpendSheet);
     setTimeout(function () {
       var a = U.el('spend-amt');
       if (a) a.focus();
@@ -493,6 +634,7 @@
   }
 
   function closeSpendSheet() {
+    if (releaseTrap['spend']) { releaseTrap['spend'](); releaseTrap['spend'] = null; }
     var sheet = U.el('spend-sheet');
     if (sheet) sheet.remove();
   }
@@ -560,6 +702,7 @@
   }
 
   function closeFindSheet() {
+    if (releaseTrap['find']) { releaseTrap['find'](); releaseTrap['find'] = null; }
     var sheet = U.el('find-sheet');
     if (sheet) sheet.remove();
     findCoords = null;
@@ -836,6 +979,23 @@
   }
 
   /* Fill in the thumbnails for one place, or for every place on screen. */
+  /* The readable name of whatever a uid belongs to — a stop or a food
+     pick — for photo alt text and labels. */
+  function nameForUid(uid) {
+    if (!current || !uid) return '';
+    for (var i = 0; i < current.days.length; i++) {
+      var stops = current.days[i].stops;
+      for (var j = 0; j < stops.length; j++) {
+        if (stops[j].uid === uid) return U.plain(stops[j].mapLabel || stops[j].title);
+      }
+    }
+    var picks = current.food.picks;
+    for (var k = 0; k < picks.length; k++) {
+      if (picks[k].uid === uid) return U.plain(picks[k].title);
+    }
+    return '';
+  }
+
   function paintPhotos(uid) {
     if (!current) return;
     var slots = uid
@@ -849,10 +1009,17 @@
       if (seen[id]) return;
       seen[id] = true;
 
+      /* "相片" told a screen reader nothing. Name the place instead,
+         and number them so two photos of one stop are distinguishable. */
+      var place = nameForUid(id);
       Photos.listFor(current.id, id).then(function (recs) {
-        var html = recs.map(function (r) {
-          return '<button class="jr-th" data-act="viewphoto" data-photo="' + r.id + '">' +
-            '<img src="' + Photos.urlFor(r.blob) + '" alt="" loading="lazy"></button>';
+        var html = recs.map(function (r, i) {
+          var alt = place
+            ? place + ' 嘅相' + (recs.length > 1 ? ' ' + (i + 1) + '／' + recs.length : '')
+            : '旅行相片' + (recs.length > 1 ? ' ' + (i + 1) : '');
+          return '<button class="jr-th" data-act="viewphoto" data-photo="' + r.id +
+            '" aria-label="放大 ' + U.esc(alt) + '">' +
+            '<img src="' + Photos.urlFor(r.blob) + '" alt="' + U.esc(alt) + '" loading="lazy"></button>';
         }).join('');
         var all = document.querySelectorAll('#view-trip [data-photos="' + id + '"]');
         for (var i = 0; i < all.length; i++) all[i].innerHTML = html;
@@ -866,6 +1033,7 @@
     if (!current) return;
     var box = document.createElement('div');
     box.className = 'lightbox';
+    box.setAttribute('aria-label', '相片');
     box.innerHTML = '<div class="lb-bar">' +
         '<button class="lb-b" data-lb="close">✕ 閂</button>' +
         '<button class="lb-b del" data-lb="del">🗑 刪除</button>' +
@@ -880,7 +1048,14 @@
     img.src = thumb ? thumb.src : '';
     box.querySelector('.lb-img').appendChild(img);
 
-    function close() { box.remove(); }
+    var release = U.trapFocus(box, function () { close(); });
+    var closeBtn = box.querySelector('[data-lb="close"]');
+    if (closeBtn) closeBtn.focus();
+
+    function close() {
+      release();
+      box.remove();
+    }
 
     box.addEventListener('click', function (e) {
       var act = e.target.closest ? e.target.closest('[data-lb]') : null;
@@ -969,6 +1144,13 @@
     else if (act === 'spend-add') { e.preventDefault(); openSpendSheet(); }
     else if (act === 'spend-del') { e.preventDefault(); deleteSpend(btn.getAttribute('data-uid')); }
     else if (act === 'budget') { e.preventDefault(); editBudget(); }
+    else if (act === 'bookings') { go('#/trip/' + encodeURIComponent(current.id) + '/bookings'); }
+    else if (act === 'bk-add') { e.preventDefault(); openBookingSheet(); }
+    else if (act === 'bk-del') { e.preventDefault(); deleteBooking(btn.getAttribute('data-uid')); }
+    else if (act === 'copyref') { e.preventDefault(); copyRef(btn.getAttribute('data-ref'), btn); }
+    else if (act === 'pack') { e.preventDefault(); togglePacked(btn.getAttribute('data-uid')); }
+    else if (act === 'pack-add') { e.preventDefault(); addPacking(); }
+    else if (act === 'pack-del') { e.preventDefault(); deletePacking(btn.getAttribute('data-uid')); }
     else if (act === 'share') { e.preventDefault(); shareTrip(btn); }
     else if (act === 'print') { e.preventDefault(); printTrip(); }
     else if (act === 'geocode') { e.preventDefault(); geocodeTrip(btn); }
@@ -1166,6 +1348,16 @@
     wireTheme();
     wireRestore();
     wireSwipe();
+
+    /* Enter in the packing field adds the row, so a list can be typed
+       straight through without reaching for the button each time. */
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      var t = e.target;
+      if (!t || t.id !== 'pk-new') return;
+      e.preventDefault();
+      addPacking();
+    });
 
     route();
   }

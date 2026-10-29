@@ -243,13 +243,16 @@
       var short = U.shortDate(d.date);
       var sub = (d.stops || []).filter(function (s) { return s.title; })
         .slice(0, 3).map(function (s) { return U.plain(s.mapLabel || s.title); }).join(' · ');
-      return '<button class="dcard" data-act="day" data-day="' + esc(d.id) + '">' +
-        '<div class="num"><b>' + (i + 1) + '</b>' + (short ? '<small>' + esc((wd ? wd + ' ' : '') + short) + '</small>' : '') + '</div>' +
+      var label = 'Day ' + (i + 1) + '：' + U.plain(d.title || ('Day ' + (i + 1))) +
+        (short ? '，' + (wd ? '星期' + wd + ' ' : '') + short : '');
+      return '<button class="dcard" data-act="day" data-day="' + esc(d.id) + '"' +
+        ' aria-label="' + esc(label) + '">' +
+        '<div class="num" aria-hidden="true"><b>' + (i + 1) + '</b>' + (short ? '<small>' + esc((wd ? wd + ' ' : '') + short) + '</small>' : '') + '</div>' +
         '<div class="txt">' +
           (short ? '<div class="d">' + esc((wd ? '星期' + wd + ' · ' : '') + short) + '</div>' : '') +
           '<div class="t">' + esc(d.title || ('Day ' + (i + 1))) + '</div>' +
           (sub ? '<div class="s">' + esc(sub) + '</div>' : '') +
-        '</div><div class="arrow">›</div></button>';
+        '</div><div class="arrow" aria-hidden="true">›</div></button>';
     }).join('');
 
     if (!cards) return '';
@@ -265,7 +268,7 @@
      about this trip's state rather than a place to go: how much of it
      you have done, and whether anything in it looks wrong. */
   function statusCardsHTML(trip) {
-    var cards = checkCardHTML(trip) + checkupCardHTML(trip);
+    var cards = bookingsCardHTML(trip) + checkCardHTML(trip) + checkupCardHTML(trip);
     return cards ? '<div class="daycards statuscards">' + cards + '</div>' : '';
   }
 
@@ -370,12 +373,32 @@
     return !!(activeTrip && activeTrip.progress && activeTrip.progress[uid]);
   }
 
+  /* A row of bare ✓ buttons is unusable by ear; each one needs the name
+     of the thing it ticks. */
+  function nameForTickUid(uid) {
+    if (!activeTrip || !uid) return '';
+    for (var i = 0; i < activeTrip.days.length; i++) {
+      var stops = activeTrip.days[i].stops;
+      for (var j = 0; j < stops.length; j++) {
+        if (stops[j].uid === uid) return U.plain(stops[j].mapLabel || stops[j].title);
+      }
+    }
+    var picks = activeTrip.food.picks;
+    for (var k = 0; k < picks.length; k++) {
+      if (picks[k].uid === uid) return U.plain(picks[k].title);
+    }
+    return '';
+  }
+
   function tickBtn(uid) {
     if (!uid || readOnly) return '';
     var done = isDone(uid);
+    var name = nameForTickUid(uid);
     return '<button class="tick' + (done ? ' on' : '') + '" data-act="tick" data-uid="' + esc(uid) +
       '" aria-pressed="' + (done ? 'true' : 'false') +
-      '" title="' + (done ? '已經去咗' : '標做去咗') + '"><span>✓</span></button>';
+      '" aria-label="' + esc(name ? name + (done ? '：已經去咗' : '：標做去咗')
+                                   : (done ? '已經去咗' : '標做去咗')) + '"' +
+      ' title="' + (done ? '已經去咗' : '標做去咗') + '"><span aria-hidden="true">✓</span></button>';
   }
 
   function noteOf(uid) {
@@ -518,6 +541,131 @@
       '</nav>';
   }
 
+  /* --- what is booked -------------------------------------------
+     Flights and hotels already have fixed cards. Everything else that
+     is booked — the train to the coast, the museum slot, the table at
+     20:00 — used to be scattered across infoCards, todos and stop
+     pins. This gathers all three into one list in time order, so the
+     question "what is next and what is the reference" has one answer.
+
+     A booking reference exists to be read out at a desk, so each one
+     is a button that copies itself. */
+  function refBtn(ref) {
+    if (!ref) return '';
+    return '<button class="refb" data-act="copyref" data-ref="' + esc(ref) +
+      '" title="撳一下 copy">' + esc(ref) + ' <span aria-hidden="true">⧉</span></button>';
+  }
+
+  /* Everything booked, in one shape, sorted: the ones with a real
+     datetime first and in order, then the rest as written. */
+  function bookingRows(trip) {
+    var rows = [];
+    trip.flights.forEach(function (f) {
+      if (!f.when && !f.route) return;
+      rows.push({ icon: '✈️', when: f.when, title: f.route, ref: f.ref, note: f.note, at: '', mapQuery: '' });
+    });
+    trip.hotels.forEach(function (h) {
+      if (!h.name && !h.address) return;
+      rows.push({
+        icon: '🏨', when: h.dates, title: h.name || h.address, ref: h.ref,
+        note: [h.address, h.note, h.cancelBy ? '免費取消到 ' + h.cancelBy : ''].filter(Boolean).join(' · '),
+        at: '', mapQuery: h.mapQuery || h.name
+      });
+    });
+    trip.bookings.forEach(function (b) {
+      rows.push({
+        icon: '🎫', when: b.when, title: b.title, ref: b.ref, note: b.note,
+        at: b.at, mapQuery: b.mapQuery, uid: b.uid
+      });
+    });
+    var timed = rows.filter(function (r) { return r.at; })
+      .sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
+    return timed.concat(rows.filter(function (r) { return !r.at; }));
+  }
+
+  /* The next one still ahead, for the countdown on the card. */
+  function nextBooking(trip) {
+    var now = new Date().toISOString().slice(0, 16);
+    var ahead = bookingRows(trip)
+      .filter(function (r) { return r.at && r.at >= now; })
+      .sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
+    return ahead[0] || null;
+  }
+
+  function bookingsCardHTML(trip) {
+    var rows = bookingRows(trip);
+    if (!rows.length || readOnly) return '';
+    var next = nextBooking(trip);
+    return '<button class="dcard booked" data-act="bookings">' +
+      '<div class="num"><b>🎫</b><small>' + rows.length + '</small></div>' +
+      '<div class="txt"><div class="d">全程</div><div class="t">訂咗嘅嘢</div>' +
+      '<div class="s">' + (next
+        ? esc(U.plain(next.title || next.when)) + ' · ' + esc(U.untilText(next.at) || '')
+        : rows.length + ' 樣已經訂好') + '</div></div>' +
+      '<div class="arrow" aria-hidden="true">›</div></button>';
+  }
+
+  function bookingsHTML(trip) {
+    if (readOnly) return '';
+    var rows = bookingRows(trip);
+    var next = nextBooking(trip);
+
+    var head = '';
+    if (next) {
+      head = '<div class="card cd nextbk"><div class="cd-label">下一樣</div>' +
+        '<div class="nb-t">' + rich(next.title || next.when) + '</div>' +
+        '<div class="cd-sub">' + esc([next.when, U.untilText(next.at)].filter(Boolean).join(' · ')) + '</div>' +
+        '</div>';
+    }
+
+    var list = rows.length
+      ? '<div class="card"><h2>全部</h2>' + rows.map(function (r) {
+          var nav = r.mapQuery
+            ? ' <a class="gmap" href="' + esc(U.mapsUrl(r.mapQuery)) +
+              '" target="_blank" rel="noopener">🧭 導航</a>'
+            : '';
+          return '<div class="bkrow"><span class="bki">' + r.icon + '</span>' +
+            '<span class="bkt">' + rich(r.title || r.when) + nav +
+              (r.when && r.title ? '<small>' + esc(r.when) + '</small>' : '') +
+              (r.note ? '<small>' + rich(r.note) + '</small>' : '') +
+              (r.ref ? '<span class="bkref">訂位編號 ' + refBtn(r.ref) + '</span>' : '') +
+            '</span>' +
+            (r.uid ? '<button class="iconbtn" data-act="bk-del" data-uid="' + esc(r.uid) +
+              '" aria-label="刪除">✕</button>' : '') +
+            '</div>';
+        }).join('') + '</div>'
+      : '<div class="card empty"><h2>仲未訂過嘢</h2>' +
+        '<p class="tinynote">機票同酒店填咗就會自動出喺度。其他（火車、博物館時段、餐廳）可以喺下面加。</p></div>';
+
+    return '<div class="subview" data-sub="bookings"><div class="wrap">' +
+      '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
+        '<span class="sp"></span><span class="bt">🎫 訂咗嘅嘢</span></div>' +
+      head + list +
+      '<div class="findrow"><button class="btn" data-act="bk-add">＋ 加一樣訂咗嘅嘢</button></div>' +
+      '</div></div>';
+  }
+
+  function bookingSheetHTML() {
+    return '<div class="sheet" id="bk-sheet" aria-labelledby="bk-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="bk-sheet-h">＋ 訂咗嘅嘢</h2>' +
+        '<button class="iconbtn" data-bk="close" aria-label="閂">✕</button></div>' +
+      '<p class="tinynote" style="margin-top:0">機票同酒店唔使喺度加 —— 佢哋有自己嘅欄位，會自動出。</p>' +
+      '<div class="f"><label>係咩嚟</label>' +
+        '<input id="bk-title" type="text" placeholder="例如 火車去 Nerja、Alhambra 入場" autocomplete="off"></div>' +
+      '<div class="f"><label>幾時 <span class="opt">（寫得幾清楚都得）</span></label>' +
+        '<input id="bk-when" type="text" placeholder="例如 D3 09:15" autocomplete="off"></div>' +
+      '<div class="f"><label>準確時間 <span class="opt">（填咗先有倒數，可留空）</span></label>' +
+        '<input id="bk-at" type="datetime-local"></div>' +
+      '<div class="f"><label>訂位編號 <span class="opt">（可留空）</span></label>' +
+        '<input id="bk-ref" type="text" autocomplete="off"></div>' +
+      '<div class="f"><label>備註 <span class="opt">（可留空）</span></label>' +
+        '<input id="bk-note" type="text" autocomplete="off"></div>' +
+      '<div class="sheet-foot">' +
+        '<button class="btn" data-bk="close">取消</button>' +
+        '<button class="btn btn-primary" data-bk="save">加入</button>' +
+      '</div></div></div>';
+  }
+
   /* --- what it cost ---------------------------------------------
      The FX widget converts one number, which is a calculator. The
      question on a trip is how much has gone so far and whether that is
@@ -655,8 +803,8 @@
         esc(label) + '</option>';
     }).join('');
 
-    return '<div class="sheet" id="spend-sheet"><div class="sheet-in">' +
-      '<div class="sheet-head"><h2>＋ 記一筆</h2>' +
+    return '<div class="sheet" id="spend-sheet" aria-labelledby="spend-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="spend-sheet-h">＋ 記一筆</h2>' +
         '<button class="iconbtn" data-spend="close" aria-label="閂">✕</button></div>' +
 
       '<div class="f"><label>幾多錢' + (cur ? ' <span class="opt">（' + esc(cur) + '）</span>' : '') + '</label>' +
@@ -741,10 +889,36 @@
       '</div>';
   }
 
+  /* What to bring. The same kind of thing as the visited list — a list
+     you tick — so it shares this screen rather than taking a tab of its
+     own. Ticking one is a record and does not touch the plan. */
+  function packingHTML(trip) {
+    var items = trip.packing;
+    var done = items.filter(function (x) { return x.done; }).length;
+    return '<div class="card packcard"><h2>🎒 執嘢清單' +
+      (items.length ? ' <small class="pkn">' + done + ' / ' + items.length + '</small>' : '') + '</h2>' +
+      (items.length
+        ? '<ul class="pklist">' + items.map(function (x) {
+            return '<li class="pkrow' + (x.done ? ' on' : '') + '">' +
+              '<button class="tick' + (x.done ? ' on' : '') + '" data-act="pack" data-uid="' + esc(x.uid) +
+                '" aria-pressed="' + (x.done ? 'true' : 'false') +
+                '" aria-label="' + esc(x.text) + (x.done ? '：執咗' : '：標做執咗') + '">' +
+                '<span aria-hidden="true">✓</span></button>' +
+              '<span class="pkt">' + esc(x.text) + '</span>' +
+              '<button class="iconbtn" data-act="pack-del" data-uid="' + esc(x.uid) +
+                '" aria-label="刪除 ' + esc(x.text) + '">✕</button>' +
+            '</li>';
+          }).join('') + '</ul>'
+        : '<p class="tinynote">仲未加過嘢。充電器、轉換插頭、藥 —— 加一次，下次複製行程就跟住嚟。</p>') +
+      '<div class="pkadd">' +
+        '<input id="pk-new" type="text" placeholder="加一樣嘢…" autocomplete="off" aria-label="加一樣要帶嘅嘢">' +
+        '<button class="btn" data-act="pack-add">加</button>' +
+      '</div></div>';
+  }
+
   function checklistHTML(trip) {
     if (readOnly) return '';
     var items = checkItems(trip);
-    if (!items.length) return '';
 
     var groups = [], byGroup = {};
     items.forEach(function (it) {
@@ -767,18 +941,21 @@
         '<span class="sp"></span><span class="bt">打卡清單</span></div>' +
       '<div class="day-top"><div class="dn">全程</div><h3>打卡清單</h3>' +
         '<div class="theme">去過嘅撳一下，日程頁面同呢度一齊更新</div></div>' +
-      '<div class="card ckcard">' +
-        checkBarHTML(trip) +
-        '<div class="ckfilters">' +
-          '<button class="ckf on" data-filter="all">全部</button>' +
-          '<button class="ckf" data-filter="todo">未去</button>' +
-          '<button class="ckf" data-filter="done">去咗</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="ck-list">' + body + '</div>' +
-      '<div class="card" style="text-align:center">' +
-        '<button class="btn btn-sm btn-danger" data-act="ckreset">清空所有打卡記錄</button>' +
-      '</div>' +
+      (items.length
+        ? '<div class="card ckcard">' +
+            checkBarHTML(trip) +
+            '<div class="ckfilters">' +
+              '<button class="ckf on" data-filter="all">全部</button>' +
+              '<button class="ckf" data-filter="todo">未去</button>' +
+              '<button class="ckf" data-filter="done">去咗</button>' +
+            '</div>' +
+          '</div>' +
+          '<div id="ck-list">' + body + '</div>' +
+          '<div class="card" style="text-align:center">' +
+            '<button class="btn btn-sm btn-danger" data-act="ckreset">清空所有打卡記錄</button>' +
+          '</div>'
+        : '') +
+      packingHTML(trip) +
     '</div></div>';
   }
 
@@ -790,7 +967,7 @@
     return '<button class="dcard check" data-act="check">' +
       '<div class="num"><b>' + c.done + '</b><small>/ ' + c.total + '</small></div>' +
       '<div class="txt"><div class="d">全程</div><div class="t">打卡清單</div>' +
-      '<div class="s">去過嘅景點同餐廳一覽</div></div><div class="arrow">›</div></button>';
+      '<div class="s">去過嘅景點同餐廳一覽</div></div><div class="arrow" aria-hidden="true">›</div></button>';
   }
 
   /* --- 行程體檢 -------------------------------------------------- */
@@ -819,7 +996,7 @@
               '<span class="cu-t">' + esc(f.text) + '</span>' +
               '<span class="cu-s">' + esc(f.sub) + '</span>' +
             '</span>' +
-            (f.goTo ? '<span class="arrow">›</span>' : '') +
+            (f.goTo ? '<span class="arrow" aria-hidden="true">›</span>' : '') +
           '</button>';
         }).join('')
       : '<div class="card cuok"><div class="cuok-i">✓</div>' +
@@ -867,7 +1044,7 @@
     return '<button class="dcard checkup' + (c.bad ? ' hasbad' : '') + '" data-act="checkup">' +
       '<div class="num"><b>' + (c.total || '✓') + '</b>' + (c.total ? '<small>項</small>' : '') + '</div>' +
       '<div class="txt"><div class="d">出發前</div><div class="t">行程體檢</div>' +
-      '<div class="s">' + esc(sub) + '</div></div><div class="arrow">›</div></button>';
+      '<div class="s">' + esc(sub) + '</div></div><div class="arrow" aria-hidden="true">›</div></button>';
   }
 
   /* --- search ---------------------------------------------------
@@ -924,7 +1101,7 @@
         '<div class="scht">' + rich(row.title) + (row.star ? ' <span class="star">★</span>' : '') +
           (isDone(row.uid) ? ' <span class="schdone">✓ 去咗</span>' : '') + '</div>' +
         (noteOf(row.uid) ? '<div class="schn">✏️ ' + esc(noteOf(row.uid)) + '</div>' : '') +
-      '</div><div class="arrow">›</div></button>';
+      '</div><div class="arrow" aria-hidden="true">›</div></button>';
   }
 
   /* --- food ---------------------------------------------------- */
@@ -984,8 +1161,8 @@
 
     var kinds = [['🍽️', '食'], ['☕', '飲'], ['🛍️', '買'], ['📍', '景點']];
 
-    return '<div class="sheet" id="find-sheet"><div class="sheet-in">' +
-      '<div class="sheet-head"><h2>＋ 即興發現</h2>' +
+    return '<div class="sheet" id="find-sheet" aria-labelledby="find-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="find-sheet-h">＋ 即興發現</h2>' +
         '<button class="iconbtn" data-find="close" aria-label="閂">✕</button></div>' +
       '<p class="tinynote" style="margin-top:0">唔喺計劃入面、但係去咗嘅地方。記低咗會自動當做「去咗」。</p>' +
 
@@ -1045,6 +1222,7 @@
       t.days.map(function (d, i) { return dayHTML(t, d, i); }).join('') +
       foodHTML(t) +
       moneyHTML(t) +
+      bookingsHTML(t) +
       checklistHTML(t) +
       searchHTML(t) +
       checkupHTML(t) +
@@ -1085,6 +1263,8 @@
     searchIndex: searchIndex, searchResultHTML: searchResultHTML,
     findSheetHTML: findSheetHTML,
     spendSheetHTML: spendSheetHTML, moneyHTML: moneyHTML,
+    bookingSheetHTML: bookingSheetHTML, bookingsHTML: bookingsHTML,
+    checklistHTML: checklistHTML,
     spendTotals: spendTotals, moneyText: moneyText,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }
   };

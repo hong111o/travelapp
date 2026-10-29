@@ -184,6 +184,69 @@
     return false;
   }
 
+  /* --- booked, and packed ---------------------------------------
+     A booking is part of the plan, so it moves updatedAt. Packing items
+     are too — but ticking one off is a record of what you have done,
+     like a visited mark, so the tick alone does not. */
+  function addBooking(tripId, booking) {
+    var t = get(tripId);
+    if (!t) return null;
+    var row = {
+      uid: U.uid('bk'),
+      at: String((booking && booking.at) || ''),
+      when: String((booking && booking.when) || '').trim(),
+      title: String((booking && booking.title) || '').trim(),
+      ref: String((booking && booking.ref) || '').trim(),
+      note: String((booking && booking.note) || '').trim(),
+      mapQuery: String((booking && booking.mapQuery) || '').trim()
+    };
+    if (!row.title && !row.when) return null;
+    t.bookings.push(row);
+    return save(t) ? row : null;
+  }
+
+  function removeBooking(tripId, uid) {
+    var t = get(tripId);
+    if (!t) return false;
+    t.bookings = t.bookings.filter(function (b) { return b.uid !== uid; });
+    return !!save(t);
+  }
+
+  function addPacking(tripId, text) {
+    var t = get(tripId);
+    if (!t) return null;
+    var clean = String(text == null ? '' : text).trim();
+    if (!clean) return null;
+    var row = { uid: U.uid('pk'), text: clean, done: false };
+    t.packing.push(row);
+    return save(t) ? row : null;
+  }
+
+  function removePacking(tripId, uid) {
+    var t = get(tripId);
+    if (!t) return false;
+    t.packing = t.packing.filter(function (x) { return x.uid !== uid; });
+    return !!save(t);
+  }
+
+  /* Skips updatedAt deliberately — see setDone. */
+  function setPacked(tripId, uid, done) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      var packing = Array.isArray(list[i].packing) ? list[i].packing : [];
+      for (var j = 0; j < packing.length; j++) {
+        if (packing[j] && packing[j].uid === uid) {
+          packing[j].done = !!done;
+          list[i].packing = packing;
+          return writeRaw(list);
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+
   /* --- what it cost ---------------------------------------------
      Spend is a record of the day, like a tick or a note, so it skips
      updatedAt for the same reason: the plan has not changed, and
@@ -382,6 +445,8 @@
     seedIfFirstRun: seedIfFirstRun, restoreSamples: restoreSamples,
     setDone: setDone, setNote: setNote, addFind: addFind,
     addSpend: addSpend, removeSpend: removeSpend, setBudget: setBudget,
+    addBooking: addBooking, removeBooking: removeBooking,
+    addPacking: addPacking, removePacking: removePacking, setPacked: setPacked,
     clearProgress: clearProgress, migrateUids: migrateUids,
     backupInfo: backupInfo, restoreBackup: restoreBackup,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON

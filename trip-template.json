@@ -7,6 +7,9 @@
     "3. 填完淨係輸出成個 JSON，唔好有開場白、解釋，唔好用 ``` 包住。",
     "4. 座標：請盡量查返每個地方嘅經緯度（有搜尋工具就上網查；博物館、車站、",
     "   教堂、廣場、沙灘、機場呢類出名地標，知得準就直接填）。",
+    "7. 機票填 flights，酒店填 hotels，其他訂咗嘅（火車、博物館時段、餐廳）填 bookings；",
+    "   bookings 入面 when 係畀人睇（\"D3 09:15\"），at 要準確（\"YYYY-MM-DDTHH:MM\"）先有倒數。",
+    "   packing 係要帶嘅嘢，一個字串 array 就得。",
     "   真係唔肯定先寫 null —— app 有「🔎 自動補座標」會用 OpenStreetMap 補返，",
     "   但作一個假座標就會標錯去第二度，所以：知就填，唔知寫 null，唔好靠估。",
     "5. mapQuery 每個 stop 都要填（Google Maps 搵得到嘅字串，店名 + 城市最穩陣），",
@@ -112,6 +115,14 @@
           "sub": "€4，去 Plaza de Armas"
         }
       ]
+    },
+    "booking": {
+      "title": "火車去 Nerja",
+      "when": "D3 09:15",
+      "at": "2027-03-14T09:15",
+      "ref": "TRN456",
+      "note": "記得買來回",
+      "mapQuery": "Malaga Maria Zambrano"
     }
   },
   "title": "",
@@ -152,6 +163,17 @@
       "mapQuery": ""
     }
   ],
+  "bookings": [
+    {
+      "title": "",
+      "when": "",
+      "at": "",
+      "ref": "",
+      "note": "",
+      "mapQuery": ""
+    }
+  ],
+  "packing": [],
   "infoCards": [
     {
       "icon": "",

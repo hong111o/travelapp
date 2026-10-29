@@ -267,6 +267,77 @@
     return (metres / 1000).toFixed(metres < 10000 ? 1 : 0) + ' km';
   }
 
+  /* --- modal plumbing -------------------------------------------
+     The sheets and the lightbox looked like dialogs and behaved like
+     ordinary divs: Tab walked out of them into the page behind,
+     Escape did nothing, and focus was never given back to whatever
+     opened them. One helper so every one of them behaves. */
+
+  var FOCUSABLE = 'a[href],area[href],input:not([disabled]),select:not([disabled]),' +
+    'textarea:not([disabled]),button:not([disabled]),iframe,object,embed,' +
+    '[tabindex]:not([tabindex="-1"]),[contenteditable]';
+
+  function focusables(root) {
+    var all = root.querySelectorAll(FOCUSABLE);
+    var out = [];
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      /* offsetParent is null for display:none; a dialog never has a
+         position:fixed child that is also hidden, so this is enough. */
+      if (el.offsetParent !== null || el === document.activeElement) out.push(el);
+    }
+    return out;
+  }
+
+  /* Makes `el` behave as a modal dialog. Returns a function that undoes
+     all of it — call that from wherever the dialog is dismissed. */
+  function trapFocus(el, onClose) {
+    var opener = document.activeElement;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+
+    /* Hide the rest of the page from assistive technology, so the
+       reader does not wander off into a page nobody can see. */
+    var siblings = [];
+    var kids = document.body.children;
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i] === el) continue;
+      siblings.push([kids[i], kids[i].getAttribute('aria-hidden')]);
+      kids[i].setAttribute('aria-hidden', 'true');
+    }
+
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (onClose) onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      var list = focusables(el);
+      if (!list.length) { e.preventDefault(); el.focus(); return; }
+      var first = list[0], last = list[list.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === el)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    }
+    document.addEventListener('keydown', onKey, true);
+
+    return function release() {
+      document.removeEventListener('keydown', onKey, true);
+      siblings.forEach(function (pair) {
+        if (pair[1] == null) pair[0].removeAttribute('aria-hidden');
+        else pair[0].setAttribute('aria-hidden', pair[1]);
+      });
+      /* Put the caret back where the person left it. */
+      if (opener && opener.focus && document.contains(opener)) {
+        try { opener.focus(); } catch (e) { /* gone from the DOM */ }
+      }
+    };
+  }
+
   /* --- object paths (used by the editor's data binding) -------- */
 
   function getPath(obj, path) {
@@ -334,6 +405,7 @@
     legInfo: legInfo, looksTransit: looksTransit,
     minTravelMinutes: minTravelMinutes, minutesText: minutesText,
     todaysDay: todaysDay, untilText: untilText,
+    trapFocus: trapFocus,
     toast: toast, download: download
   };
 })(window);

@@ -22,6 +22,8 @@
  *     journal:  { "<uid>": {note, at} },            // notes written on the day
  *     budget:   number | null,                     // in the trip's own currency
  *     spend:    [{uid, at, amount, cat, note, dayId, stopUid}],
+ *     bookings: [{uid, at, when, title, ref, note, mapQuery}],
+ *     packing:  [{uid, text, done}],
  *     notes
  *   }
  *
@@ -79,6 +81,8 @@
       food: { quick: [], picks: [], legend: '' },
       progress: {},
       journal: {},
+      bookings: [],
+      packing: [],
       budget: null,
       spend: [],
       notes: '',
@@ -242,6 +246,34 @@
       },
       progress: {},
       journal: {},
+      /* Everything else that is booked. Flights and hotels have their
+         own fixed fields; this is the train to the coast, the museum
+         slot, the table at 20:00 — which used to be scattered across
+         infoCards, todos and stop pins. `at` is optional and only
+         needed for the countdown; `when` is what you read. */
+      bookings: arr(t.bookings).map(function (b) {
+        return {
+          uid: str(b && b.uid) || U.uid('bk'),
+          at: str(b && b.at),
+          when: str(b && b.when),
+          title: str(b && b.title),
+          ref: str(b && b.ref),
+          note: str(b && b.note),
+          mapQuery: str(b && b.mapQuery)
+        };
+      }).filter(function (b) { return b.title || b.when; }),
+
+      /* What to bring. Ticking one is a record, like a visited mark, so
+         it does not move updatedAt. */
+      packing: arr(t.packing).map(function (x) {
+        if (typeof x === 'string') return { uid: U.uid('pk'), text: x, done: false };
+        return {
+          uid: str(x && x.uid) || U.uid('pk'),
+          text: str(x && x.text),
+          done: !!(x && x.done)
+        };
+      }).filter(function (x) { return x.text; }),
+
       /* What the trip actually cost. Written on the day, like a tick or
          a note, so it is a record rather than part of the plan. */
       budget: num(t.budget),
@@ -279,6 +311,8 @@
       d.stops.forEach(function (s) { claim(s, 's'); });
     });
     out.spend.forEach(function (e) { claim(e, 'sp'); });
+    out.bookings.forEach(function (b) { claim(b, 'bk'); });
+    out.packing.forEach(function (x) { claim(x, 'pk'); });
     out.food.picks.forEach(function (p) { claim(p, 'p'); });
 
     /* Carry over only the ticks that still point at something. Editing a
