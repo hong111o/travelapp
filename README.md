@@ -2,7 +2,8 @@
 
 自己嘅旅行行程 app。一個行程 = 一個 JSON 檔，app 負責畫出嚟 —— 所以同一套版面用得一世，唔使每次旅行重寫一次 HTML。
 
-由一份手寫嘅 Málaga 行程 HTML 改造而成：版面、配色、地圖、天氣、匯率、倒數全部保留，但資料同顯示分開咗。
+由一份手寫嘅 Málaga 行程 HTML 改造而成：版面、地圖、天氣、匯率、倒數全部保留，但資料同顯示分開咗。
+配色跟返個 app icon —— 一幅地中海海灣嘅水彩。
 
 ---
 
@@ -32,6 +33,29 @@
 | 🌤️ **即時天氣日落** | 跟行程嘅座標自動拎 |
 | 💱 **匯率換算** | 跟行程設定嘅貨幣對 |
 | ⏱️ **出發倒數** | 跟行程設定嘅出發時間 |
+| 💰 **使費記帳** | 兩下記低一筆，逐日逐類埋單，可以設預算 |
+| 🎫 **訂咗嘅嘢** | 機票、酒店、火車、入場時段一張清單，訂位編號撳一下就 copy |
+| 🎒 **執嘢清單** | 要帶嘅嘢打返剔，下次複製行程就跟住嚟 |
+| 🌙 **深色模式** | 跟系統，或者自己撳。夜機、臥鋪、關燈之後都睇得舒服 |
+| ↩️ **復原** | 撳錯刪除、匯入錯檔，一撳返到上一步 |
+| ⌨️ **鍵盤同讀屏** | 對話框困住焦點、Esc 閂、每個掣都有名 |
+
+---
+
+## 行程入面點行
+
+底下有條 tab bar，隨時撳得到：
+
+| Tab | 入面有咩 |
+|---|---|
+| 📋 行程 | 逐日行程、訂咗嘅嘢、打卡進度、行程體檢 |
+| ◎ 美食 | 每餐 Plan A + 餐廳清單 |
+| 💰 使費 | 用咗幾多、剩返幾多、逐日逐類 |
+| ✓ 清單 | 打卡清單 + 執嘢清單 |
+| 🔍 搵嘢 | 全程搜尋（行程夠大先出現） |
+
+日頁底下有「前一日 / 後一日」，電話上面左右掃都得。
+行程進行緊嘅時候，一打開就直接入今日，唔使自己揀。
 
 ---
 
@@ -563,11 +587,20 @@ assets/
 data/
   trips/demo-lisboa.json    示範行程（公開地標，冇私人資料）
   builtin.js                由上面打包出嚟（**generated，唔好手改**）
+tests/
+  run.js                    起個 server、逐個 suite 行、報結果
+  *.test.js                 Playwright 行真 app（smoke / store / nav /
+                            spend / booking / a11y / theme）
 tools/
   bundle-trips.js           打包 script
 ```
 
 冇 build step、冇 npm dependency、冇 framework。改完直接 refresh 就睇到。
+
+```sh
+node tests/run.js            # 全部
+node tests/run.js store nav  # 揀幾個
+```
 
 外部資源（都係免費、免 API key）：OpenStreetMap（地圖 tile）、Open-Meteo（天氣日落）、
 Fawaz Ahmed currency-api 同 open.er-api.com（匯率）、Google Fonts（淨係中文字體，離線有 fallback）。
