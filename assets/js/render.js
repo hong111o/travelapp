@@ -592,6 +592,20 @@
     return ahead[0] || null;
   }
 
+  /* untilText counts minutes; `at` is a datetime. Passing one for the
+     other printed "NaN 個鐘" on the card. */
+  function countdownText(at) {
+    var mins = U.minutesUntil(at);
+    if (mins == null) return '';
+    return mins < 0 ? '' : '仲有 ' + U.untilText(mins);
+  }
+
+  function bookingWhenText(row) {
+    var cd = countdownText(row.at);
+    if (cd) return ' · ' + cd;
+    return row.when ? ' · ' + U.plain(row.when) : '';
+  }
+
   function bookingsCardHTML(trip) {
     var rows = bookingRows(trip);
     if (!rows.length || readOnly) return '';
@@ -600,7 +614,7 @@
       '<div class="num"><b>🎫</b><small>' + rows.length + '</small></div>' +
       '<div class="txt"><div class="d">全程</div><div class="t">訂咗嘅嘢</div>' +
       '<div class="s">' + (next
-        ? esc(U.plain(next.title || next.when)) + ' · ' + esc(U.untilText(next.at) || '')
+        ? esc(U.plain(next.title || next.when)) + bookingWhenText(next)
         : rows.length + ' 樣已經訂好') + '</div></div>' +
       '<div class="arrow" aria-hidden="true">›</div></button>';
   }
@@ -614,7 +628,7 @@
     if (next) {
       head = '<div class="card cd nextbk"><div class="cd-label">下一樣</div>' +
         '<div class="nb-t">' + rich(next.title || next.when) + '</div>' +
-        '<div class="cd-sub">' + esc([next.when, U.untilText(next.at)].filter(Boolean).join(' · ')) + '</div>' +
+        '<div class="cd-sub">' + esc([next.when, countdownText(next.at)].filter(Boolean).join(' · ')) + '</div>' +
         '</div>';
     }
 

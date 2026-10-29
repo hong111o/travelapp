@@ -142,6 +142,16 @@
   }
 
   /* "3 個鐘 20 分" / "45 分鐘" — gap until the next stop. */
+  /* Minutes from now until a local datetime ("2026-09-20T09:15"), which
+     is what <input type="datetime-local"> gives. Negative once it has
+     passed, null when there is nothing to measure. */
+  function minutesUntil(local) {
+    if (!local) return null;
+    var then = new Date(local);
+    if (isNaN(then.getTime())) return null;
+    return Math.round((then.getTime() - Date.now()) / 60000);
+  }
+
   function untilText(minutes) {
     if (minutes == null || minutes < 0) return '';
     if (minutes < 1) return '就快到';
@@ -404,7 +414,7 @@
     metresBetween: metresBetween, walkMinutes: walkMinutes, distanceText: distanceText,
     legInfo: legInfo, looksTransit: looksTransit,
     minTravelMinutes: minTravelMinutes, minutesText: minutesText,
-    todaysDay: todaysDay, untilText: untilText,
+    todaysDay: todaysDay, untilText: untilText, minutesUntil: minutesUntil,
     trapFocus: trapFocus,
     toast: toast, download: download
   };

@@ -53,6 +53,43 @@ const check = '.subview[data-sub="check"]';
     if (!await head.count()) throw new Error('nothing called out');
     const text = await head.textContent();
     if (!/火車去 Nerja/.test(text)) throw new Error('reads ' + text);
+    /* untilText counts minutes and `at` is a datetime; passing one for
+       the other printed "NaN 個鐘" on a real trip. */
+    if (/NaN|undefined|Invalid/.test(text)) throw new Error('reads ' + text);
+    if (!/個鐘|分鐘|就快到/.test(text)) throw new Error('no countdown: ' + text);
+  });
+
+  await t.step('and the home card counts down too, without NaN', async () => {
+    await page.click(`${view} .backbtn`);
+    await page.waitForSelector('.subview[data-sub="home"] .dcard.booked');
+    const text = await page.textContent('.subview[data-sub="home"] .dcard.booked');
+    if (/NaN|undefined|Invalid/.test(text)) throw new Error('reads ' + text);
+    if (!/個鐘|分鐘|就快到/.test(text)) throw new Error('no countdown: ' + text);
+    await page.click('.subview[data-sub="home"] .dcard.booked');
+    await page.waitForSelector(view);
+  });
+
+  await t.step('a booking with no exact time shows its written time instead', async () => {
+    const shown = await page.evaluate(() => {
+      const t = window.Store.get('bk');
+      t.bookings = [{ uid: 'x', at: '', when: 'D4 彈性', title: '租車', ref: '', note: '', mapQuery: '' }];
+      window.Store.save(t);
+      return true;
+    });
+    if (!shown) throw new Error('could not set up');
+    await page.reload();
+    await page.waitForSelector(view);
+    const text = await page.textContent(view);
+    if (/NaN|undefined/.test(text)) throw new Error('reads ' + text);
+    if (!text.includes('D4 彈性')) throw new Error('the written time is gone: ' + text);
+    /* Put the timed one back for the steps that follow. */
+    await page.evaluate(at => {
+      const t = window.Store.get('bk');
+      t.bookings = [{ uid: 'y', at: at, when: 'D3 09:15', title: '火車去 Nerja', ref: 'TRN456', note: '記得買來回', mapQuery: '' }];
+      window.Store.save(t);
+    }, soon);
+    await page.reload();
+    await page.waitForSelector(view);
   });
 
   await t.step('a booking reference copies itself', async () => {
