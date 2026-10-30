@@ -2002,9 +2002,9 @@
     });
   }
 
-  /* Settings gathers what used to sit only in the footer. The footer keeps
-     its buttons — they are where people already look — so these simply
-     press them rather than holding a second copy of each behaviour. */
+  /* Settings is where these live now. The footer's old buttons stay in
+     the page, hidden, so these simply press them rather than holding a
+     second copy of each behaviour. */
   function openSettingsSheet() {
     var wrap = document.createElement('div');
     wrap.innerHTML = '<div class="sheet" id="set-sheet" aria-labelledby="set-sheet-h"><div class="sheet-in">' +

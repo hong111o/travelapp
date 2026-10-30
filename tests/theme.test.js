@@ -119,8 +119,8 @@ async function readPairs(page) {
     const { browser, page, errors } = await launch({ colorScheme: 'light' });
     await t.step('the toggle overrides the system preference', async () => {
       await page.goto(BASE + '/index.html');
-      await page.waitForSelector('#btn-theme');
-      await page.click('#btn-theme');
+      await page.click('.tab[data-lib="settings"]');
+      await page.click('#set-sheet [data-set="theme"]');
       const attr = await page.getAttribute('html', 'data-theme');
       if (attr !== 'dark') throw new Error('data-theme is ' + attr);
     });
@@ -130,7 +130,8 @@ async function readPairs(page) {
       if (attr !== 'dark') throw new Error('data-theme is ' + attr + ' after reload');
     });
     await t.step('the label offers the other theme, not the current one', async () => {
-      const label = await page.textContent('#btn-theme');
+      await page.click('.tab[data-lib="settings"]');
+      const label = await page.textContent('#set-sheet [data-set="theme"]');
       if (!/淺色/.test(label)) throw new Error('label reads: ' + label);
     });
     allErrors = allErrors.concat(errors);
