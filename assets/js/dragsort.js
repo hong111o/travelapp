@@ -110,10 +110,17 @@
     if (!a.moved || a.to === a.from) return;
 
     var listPath = a.container.getAttribute('data-draglist');
-    if (listPath && typeof global.DragSort.onDrop === 'function') {
-      global.DragSort.onDrop(listPath, a.from, a.to);
-    }
+    if (!listPath) return;
+    /* Lists named "prefix:..." go to whoever registered that prefix; the
+       editor's lists, which have no prefix, still go to onDrop. */
+    var colon = listPath.indexOf(':');
+    var owner = colon > 0 && handlers[listPath.slice(0, colon)];
+    if (owner) owner(listPath.slice(colon + 1), a.from, a.to);
+    else if (typeof global.DragSort.onDrop === 'function') global.DragSort.onDrop(listPath, a.from, a.to);
   }
+
+  var handlers = {};
+  function register(prefix, fn) { handlers[prefix] = fn; }
 
   function init() {
     document.addEventListener('pointerdown', start);
@@ -122,5 +129,5 @@
     document.addEventListener('pointercancel', end);
   }
 
-  global.DragSort = { init: init, onDrop: null };
+  global.DragSort = { init: init, register: register, onDrop: null };
 })(window);

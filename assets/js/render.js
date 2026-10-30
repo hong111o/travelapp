@@ -156,22 +156,26 @@
       '</div>';
   }
 
+  /* Any pair of currencies. One side starts as the trip's local currency
+     and the other as your own, remembered across trips; both are
+     dropdowns, so a trip through two countries, or a friend who counts
+     in a third currency, is one tap away. The selects are filled by
+     Widgets.loadFX, which knows the full list. */
   function fxHTML(trip) {
-    var c = trip.currency;
-    if (!c.base || !c.quote) return '';
     return '' +
-      '<div class="card">' +
-        '<h2>💱 匯率換算 <span style="font-size:.72rem;font-weight:400;color:var(--ink-soft)" id="fx-rate">載入中…</span></h2>' +
+      '<div class="card fxcard">' +
+        '<h2>💱 匯率換算 <span class="fxrate" id="fx-rate">載入中…</span></h2>' +
         '<div class="fxgrid">' +
-          '<div class="fxcell"><label>' + esc(c.base) + '</label>' +
-            '<input id="fx-a" type="number" inputmode="decimal" value="100"></div>' +
-          '<div class="fxswap">⇄</div>' +
-          '<div class="fxcell"><label>' + esc(c.quote) + '</label>' +
-            '<input id="fx-b" type="number" inputmode="decimal"></div>' +
+          '<div class="fxcell"><select id="fx-ca" class="fxsel" aria-label="當地貨幣"></select>' +
+            '<input id="fx-a" type="number" inputmode="decimal" value="100" aria-label="當地貨幣金額"></div>' +
+          '<button class="fxswap" id="fx-swap" type="button" aria-label="對調兩邊貨幣">⇄</button>' +
+          '<div class="fxcell"><select id="fx-cb" class="fxsel" aria-label="你嘅貨幣"></select>' +
+            '<input id="fx-b" type="number" inputmode="decimal" aria-label="你嘅貨幣金額"></div>' +
         '</div>' +
         '<p class="tinynote" id="fx-upd">即時參考匯率</p>' +
       '</div>';
   }
+
 
   function countdownHTML(trip) {
     if (Widgets.departureMs(trip.departure) == null) return '';
@@ -331,55 +335,123 @@
     day:  { cls: 't-ok',   label: '當日' }
   };
 
+  /* 要訂嘅嘢 is a to-do list, so it ticks: once something is booked it
+     is done, struck through, and counted, while staying visible so you
+     can still see what was on it. */
   function todosHTML(trip) {
     var todos = trip.todos.filter(function (d) { return d.text; });
     if (!todos.length) return '';
-    return '<div class="card book"><h2>要訂嘅嘢</h2><ul>' +
+    var done = todos.filter(function (d) { return d.done; }).length;
+    return '<div class="card book"><h2>要訂嘅嘢' +
+        ' <small class="tdn">' + done + ' / ' + todos.length + '</small></h2><ul class="tdlist">' +
       todos.map(function (d) {
         var tag = TODO_TAG[d.level] || TODO_TAG.soon;
-        return '<li><span class="tag ' + tag.cls + '">' + tag.label + '</span><div>' + rich(d.text) + '</div></li>';
+        var tick = readOnly ? '' :
+          '<button class="tick' + (d.done ? ' on' : '') + '" data-act="todo" data-uid="' + esc(d.uid) +
+            '" aria-pressed="' + (d.done ? 'true' : 'false') +
+            '" aria-label="' + esc(U.plain(d.text)) + (d.done ? '：訂咗' : '：標做訂咗') + '">' +
+            '<span aria-hidden="true">✓</span></button>';
+        return '<li class="' + (d.done ? 'done' : '') + '">' + tick +
+          '<span class="tag ' + tag.cls + '">' + tag.label + '</span><div class="tdt">' + rich(d.text) + '</div></li>';
       }).join('') + '</ul></div>';
   }
 
-  /* One home screen, two arrangements. On a phone it is a single column
-     in this order. On a desktop the plan (today, the days, progress)
-     takes the wide column and the reference cards (weather, money,
-     flights, hotels, links) the narrow one.
 
-     The markup is grouped by column and every piece carries its phone
-     position as a flex `order`. Under the desktop breakpoint the column
-     wrappers are display:contents, so the pieces fall back into one flex
-     column in exactly the sequence below — neither layout has to be a
-     compromise of the other. */
-  function slot(order, html) {
-    return html ? '<div class="hs" style="order:' + order + '">' + html + '</div>' : '';
+  /* One home screen, two arrangements, in your order (see Layout).
+
+     On a phone it is one column. On a desktop each card sits in the plan
+     column or the reference column. The markup is grouped by column and
+     every card carries its place in the overall order as a flex `order`;
+     below the desktop breakpoint the column wrappers are display:contents,
+     so the cards fall into one flex column in exactly that order.
+
+     In arrange mode the cards collapse to a bar with a handle, so a long
+     card is as easy to drag as a short one. On a phone that is one list;
+     on a desktop it is one list per column, with a button to send a card
+     across. */
+  var arranging = false;
+
+  function isDesktop() {
+    return !!(global.matchMedia && global.matchMedia('(min-width:1024px)').matches);
+  }
+
+  function homePieces(trip) {
+    return {
+      today: todayHTML(trip),
+      weather: weatherHTML(trip),
+      fx: fxHTML(trip),
+      countdown: countdownHTML(trip),
+      flights: flightsHTML(trip),
+      hotels: hotelsHTML(trip),
+      info: infoCardsHTML(trip),
+      days: dayCardsHTML(trip),
+      status: statusCardsHTML(trip),
+      links: linksHTML(trip),
+      todos: todosHTML(trip),
+      share: shareHTML(trip),
+      offline: offlineHTML(trip),
+      notes: trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
+        rich(trip.notes) + '</p></div>' : ''
+    };
+  }
+
+  function arrangeBar(key, col, desk) {
+    var other = col === 'main' ? 'side' : 'main';
+    return '<div class="hs-bar">' +
+      '<span class="hs-grip" data-drag aria-hidden="true">⠿</span>' +
+      '<span class="hs-name">' + esc(Layout.label(key)) + '</span>' +
+      (desk ? '<button class="iconbtn" data-act="lay-col" data-key="' + key + '" data-col="' + other + '"' +
+        ' aria-label="搬去' + (other === 'side' ? '右' : '左') + '欄">' + (other === 'side' ? '→' : '←') + '</button>' : '') +
+      '<button class="iconbtn" data-act="lay-up" data-key="' + key + '" aria-label="' + esc(Layout.label(key)) + '：上移">↑</button>' +
+      '<button class="iconbtn" data-act="lay-down" data-key="' + key + '" aria-label="' + esc(Layout.label(key)) + '：下移">↓</button>' +
+      '</div>';
   }
 
   function homeHTML(trip) {
-    return '<div class="subview" data-sub="home">' +
+    var pieces = homePieces(trip);
+    var order = (global.Layout ? Layout.get() : []).filter(function (x) { return pieces[x.k]; });
+    var desk = isDesktop();
+
+    function slot(x, i) {
+      return '<div class="hs" data-card="' + x.k + '" style="order:' + (i + 1) + '"' +
+        (arranging ? ' data-dragrow' : '') + '>' +
+        (arranging ? arrangeBar(x.k, x.col, desk) : '') + pieces[x.k] + '</div>';
+    }
+
+    var tools = readOnly ? '' :
+      '<div class="arrangebar">' +
+        (arranging
+          ? '<span class="ab-t">撳住 ⠿ 拖去想要嘅位置' + (desk ? '，→ ← 換欄' : '') + '</span>' +
+            '<button class="btn btn-sm" data-act="lay-reset">還原預設</button>' +
+            '<button class="btn btn-sm btn-primary" data-act="lay-done">完成</button>'
+          : '<button class="btn btn-sm" data-act="lay-start">🧩 排位</button>') +
+      '</div>';
+
+    var body;
+    if (arranging && !desk) {
+      body = '<div class="harrange" data-draglist="layout:all">' + order.map(slot).join('') + '</div>';
+    } else {
+      var main = [], side = [];
+      order.forEach(function (x, i) { (x.col === 'side' ? side : main).push(slot(x, i)); });
+      body = '<div class="hcol hmain"' + (arranging ? ' data-draglist="layout:main"' : '') + '>' + main.join('') + '</div>' +
+        '<div class="hcol hside"' + (arranging ? ' data-draglist="layout:side"' : '') + '>' + side.join('') + '</div>';
+    }
+
+    return '<div class="subview' + (arranging ? ' arranging' : '') + '" data-sub="home">' +
       heroHTML(trip) +
-      '<div class="wrap homegrid">' +
-        '<div class="hcol hmain">' +
-          slot(1, todayHTML(trip)) +
-          slot(8, dayCardsHTML(trip)) +
-          slot(9, statusCardsHTML(trip)) +
-          slot(11, todosHTML(trip)) +
-        '</div>' +
-        '<div class="hcol hside">' +
-          slot(2, weatherHTML(trip)) +
-          slot(3, fxHTML(trip)) +
-          slot(4, countdownHTML(trip)) +
-          slot(5, flightsHTML(trip)) +
-          slot(6, hotelsHTML(trip)) +
-          slot(7, infoCardsHTML(trip)) +
-          slot(10, linksHTML(trip)) +
-          slot(12, shareHTML(trip)) +
-          slot(13, offlineHTML(trip)) +
-          slot(14, trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
-            rich(trip.notes) + '</p></div>' : '') +
-        '</div>' +
+      '<div class="wrap homegrid">' + tools + body +
         '<footer class="hfoot">' + esc(trip.title || '行程') + '　<span class="heart">✦</span></footer>' +
       '</div></div>';
+  }
+
+  /* The keys on screen, in screen order, for a list the arrange mode drew:
+     "all" on a phone, a column on a desktop. Drops arrive as positions in
+     that list and are turned back into keys here. */
+  function arrangedKeys(trip, list) {
+    var pieces = homePieces(trip);
+    return Layout.get().filter(function (x) {
+      return pieces[x.k] && (list === 'all' || x.col === list);
+    }).map(function (x) { return x.k; });
   }
 
   /* --- one day ------------------------------------------------- */
@@ -1337,7 +1409,9 @@
     findSheetHTML: findSheetHTML,
     spendSheetHTML: spendSheetHTML, moneyHTML: moneyHTML,
     bookingSheetHTML: bookingSheetHTML, bookingsHTML: bookingsHTML,
-    coverSheetHTML: coverSheetHTML,
+    coverSheetHTML: coverSheetHTML, todosHTML: todosHTML,
+    homeHTML: homeHTML, arrangedKeys: arrangedKeys,
+    setArranging: function (on) { arranging = !!on; }, isArranging: function () { return arranging; },
     checklistHTML: checklistHTML,
     spendTotals: spendTotals, moneyText: moneyText,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }

@@ -178,7 +178,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;bac
 .book{background:var(--highlight);border:1px solid var(--amber-soft)}
 .book h2{color:var(--star)}
 .book ul{list-style:none;margin-top:4px}
-.book li{display:flex;gap:10px;padding:9px 0;border-top:1px dashed #E6D6B6;font-size:.9rem}
+.book li{display:flex;gap:10px;padding:9px 0;border-top:1px dashed var(--amber-soft);font-size:.9rem}
 .book li:first-child{border-top:none}
 .tag{flex-shrink:0;font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:999px;height:fit-content;margin-top:3px}
 .t-now{background:var(--danger);color:#fff}.t-soon{background:var(--amber);color:var(--on-amber)}.t-ok{background:var(--tint-ok);color:var(--sea)}
@@ -954,3 +954,78 @@ body.dragging-now .rep{transition:transform .14s ease}
 }
 @media print{ .hero-cover,.hero-credit{display:none !important} .hero-trip::before{display:none} }
 @media (prefers-reduced-motion: reduce){ .hero-cover{transition:none} }
+
+/* ---------- 要訂嘅嘢, as a to-do list ---------- */
+.book h2 .tdn{font-family:inherit;font-size:.8rem;font-weight:400;color:var(--ink-soft)}
+.book li{align-items:flex-start}
+.book li .tick{margin-top:-4px;flex-shrink:0}
+.book li .tdt{flex:1;min-width:0}
+.book li.done .tdt{color:var(--ink-soft);text-decoration:line-through}
+.book li.done .tag{opacity:.45}
+
+/* ---------- converter, any pair ---------- */
+.fxrate{font-size:.72rem;font-weight:400;color:var(--ink-soft);font-family:'Noto Sans HK',system-ui,sans-serif}
+.fxsel{display:block;width:100%;margin-bottom:6px;font-family:inherit;font-size:.82rem;font-weight:700;
+  color:var(--teal);background:var(--sand);border:1px solid var(--line);border-radius:10px;
+  padding:7px 8px;min-height:38px;-webkit-appearance:menulist}
+.fxsel:focus{outline:none;border-color:var(--teal)}
+.fxswap{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:50%;
+  width:40px;height:40px;padding:0;margin-bottom:4px;font-family:inherit}
+.fxswap:active{background:var(--sand-2)}
+
+/* ---------- the trips page's bar ---------- */
+.libbar[hidden]{display:none}
+.sb-only,.sb-sep{display:none}
+body.on-library #view-library .wrap{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+.tab{position:relative}
+.syncdot{position:absolute;top:8px;right:calc(50% - 16px);width:8px;height:8px;border-radius:50%;
+  background:var(--teal)}
+.syncdot.err{background:var(--danger)}
+.syncdot[hidden]{display:none}
+
+@media (min-width:1024px){
+  body.on-library #view-library{padding-left:248px}
+  body.on-library #view-library .wrap{padding-bottom:70px}
+  .libbar .sb-only{display:flex}
+  .libbar .sb-sep{display:block;height:1px;background:var(--line);margin:10px 8px}
+  /* The sidebar carries these on a desktop; the page buttons would only
+     repeat them. */
+  body.on-library .libactions{display:none}
+  .syncdot{top:50%;right:14px;margin-top:-4px}
+}
+
+/* ============================================================
+   ARRANGING THE HOME CARDS
+   Every card collapses to a bar with a grip, so a long card is as
+   easy to drag as a short one, and the whole order fits on a screen.
+   ============================================================ */
+/* On a phone the weather card tucks up under the header, so a button at
+   the top would sit beneath it; 排位 goes after the cards instead, and
+   moves to the top while arranging, when every card is a slim bar. */
+.arrangebar{order:98;display:flex;align-items:center;justify-content:flex-end;gap:8px;
+  flex-wrap:wrap;margin-top:16px}
+.arranging .arrangebar{order:0;position:sticky;top:0;z-index:20;background:var(--sand);
+  padding:8px 0;margin-top:0}
+@media (min-width:1024px){ .arrangebar{order:0} }
+.homegrid > .arrangebar{grid-column:1 / -1}
+.ab-t{flex:1;min-width:180px;font-size:.8rem;color:var(--ink-soft)}
+.arranging .hs > :not(.hs-bar){display:none}
+.arranging .hs{margin-top:9px}
+.hs-bar{display:flex;align-items:center;gap:8px;background:var(--surface);
+  border:1.5px dashed var(--teal-soft);border-radius:14px;padding:6px 8px 6px 4px;min-height:52px}
+.hs-grip{cursor:grab;touch-action:none;font-size:1.3rem;color:var(--teal);
+  padding:6px 10px;line-height:1;user-select:none;-webkit-user-select:none}
+.hs-name{flex:1;min-width:0;font-weight:700;font-size:.92rem;color:var(--ink)}
+.harrange{display:flex;flex-direction:column;order:1}
+.hs.dragging .hs-bar{border-style:solid;border-color:var(--teal);box-shadow:0 8px 22px var(--shadow)}
+@media (min-width:1024px){
+  .arranging .hcol{min-height:120px;padding:4px 0 12px;border-radius:16px}
+  .arranging .hmain{background:color-mix(in srgb, var(--tint) 45%, transparent)}
+  .arranging .hside{background:color-mix(in srgb, var(--highlight) 70%, transparent)}
+  .arranging .hcol::before{display:block;font-size:.74rem;font-weight:700;color:var(--ink-soft);
+    padding:8px 12px 0}
+  .arranging .hmain::before{content:'左欄 · 行程'}
+  .arranging .hside::before{content:'右欄 · 資料'}
+  .arranging .hcol .hs{margin:9px 10px 0}
+}
+@media print{ .arrangebar{display:none !important} }

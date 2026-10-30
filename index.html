@@ -91,6 +91,24 @@
   </div>
 </div>
 
+<!-- The trips page has its own bar: the general tools, as opposed to
+     the trip tools in the bar inside a trip. A bottom bar on a phone and
+     a sidebar on a desktop, from the same markup as the trip's bar.
+     Entries marked sb-only are already on the page as buttons on a
+     phone, so they only appear in the sidebar. -->
+<nav class="tabbar libbar" aria-label="主要功能" hidden>
+  <div class="sb-brand"><img src="assets/icon-192.png" alt="" width="40" height="40">
+    <div><b>Travel Marvel</b><span>所有行程</span></div></div>
+  <button class="tab on" data-lib="trips" aria-current="page"><span class="ti" aria-hidden="true">🗂️</span><span class="tl">行程</span></button>
+  <button class="tab sb-only" data-lib="new"><span class="ti" aria-hidden="true">＋</span><span class="tl">新行程</span></button>
+  <button class="tab sb-only" data-lib="paste"><span class="ti" aria-hidden="true">📋</span><span class="tl">貼上 AI 行程</span></button>
+  <button class="tab sb-only" data-lib="import"><span class="ti" aria-hidden="true">⬆️</span><span class="tl">匯入檔案</span></button>
+  <div class="sb-sep sb-only" role="presentation"></div>
+  <button class="tab" data-lib="hotels"><span class="ti" aria-hidden="true">🏨</span><span class="tl">酒店比較</span></button>
+  <button class="tab" data-lib="sync"><span class="ti" aria-hidden="true">☁️</span><span class="tl">同步</span><span class="syncdot" id="sync-dot" hidden></span></button>
+  <button class="tab" data-lib="settings"><span class="ti" aria-hidden="true">⚙️</span><span class="tl">設定</span></button>
+</nav>
+
 <!-- ============ TRIP (rendered itinerary) ============ -->
 <div id="view-trip" class="view"></div>
 
@@ -105,6 +123,7 @@
 <script src="data/builtin.js"></script>
 <script src="assets/js/aiprompt.js"></script>
 <script src="assets/js/widgets.js"></script>
+<script src="assets/js/layout.js"></script>
 <script src="assets/js/offline.js"></script>
 <script src="assets/js/photos.js"></script>
 <script src="assets/js/cover.js"></script>

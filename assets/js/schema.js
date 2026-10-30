@@ -12,7 +12,7 @@
  *     flights:  [ { when, route, ref, note } ],        // fixed card
  *     hotels:   [ { name, address, dates, cancelBy, ref, note, mapQuery } ],
  *     infoCards:[ { icon, title, mapQuery, rows:[{k,v,sub}] } ],   // free-form
- *     todos:    [ { level:'now'|'soon'|'day', text } ],
+ *     todos:    [ { uid, level:'now'|'soon'|'day', text, done } ],
  *     links:    [ { icon, label, url } ],
  *     days:     [ { id, title, date, theme, drawRoute, mapNote,
  *                   stops:[{ uid, time, title, star, unplanned, desc, note, backup, pin,
@@ -192,8 +192,11 @@
       todos: arr(t.todos).map(function (d) {
         var lvl = str(d && d.level);
         return {
+          uid: str(d && d.uid) || U.uid('td'),
           level: (lvl === 'now' || lvl === 'soon' || lvl === 'day') ? lvl : 'soon',
-          text: str(d && d.text)
+          text: str(d && d.text),
+          /* Ticked once it is booked. A record, like a visited mark. */
+          done: !!(d && d.done)
         };
       }),
       links: arr(t.links).map(function (l) {
@@ -313,6 +316,7 @@
     out.spend.forEach(function (e) { claim(e, 'sp'); });
     out.bookings.forEach(function (b) { claim(b, 'bk'); });
     out.packing.forEach(function (x) { claim(x, 'pk'); });
+    out.todos.forEach(function (x) { claim(x, 'td'); });
     out.food.picks.forEach(function (p) { claim(p, 'p'); });
 
     /* Carry over only the ticks that still point at something. Editing a

@@ -24,6 +24,9 @@
     'assets/js/util.js',
     'assets/js/schema.js',
     'assets/js/widgets.js',
+    /* The home screen is drawn in the layout's order; the copy you send
+       uses the default one, since the reader has no saved preference. */
+    'assets/js/layout.js',
     'assets/js/render.js'
   ];
 
@@ -76,7 +79,7 @@
     '',
     '  show("home");',
     '  Widgets.loadWeather(trip.place);',
-    '  Widgets.loadFX(trip.currency);',
+    '  Widgets.loadFX(trip);',
     '  Widgets.startCountdown(trip.departure);',
     '})();'
   ].join('\n');

@@ -44,18 +44,18 @@ async function phoneSequence(page) {
     await page.waitForTimeout(300);
 
     await t.step('the tab bar becomes a sidebar on the left', async () => {
-      const box = await page.locator('.tabbar').boundingBox();
+      const box = await page.locator('#view-trip .tabbar').boundingBox();
       if (box.x !== 0 || box.width > 300 || box.height < 800) throw new Error(JSON.stringify(box));
     });
 
     await t.step('the sidebar says which trip you are in and leads back to the shelf', async () => {
-      const brand = await page.textContent('.sb-brand');
+      const brand = await page.textContent('#view-trip .sb-brand');
       if (!/桌面測試/.test(brand)) throw new Error('reads ' + brand);
-      if (!await page.locator('.tab-lib').isVisible()) throw new Error('no way back');
+      if (!await page.locator('#view-trip .tab-lib').isVisible()) throw new Error('no way back');
     });
 
     await t.step('the content does not slide under the sidebar', async () => {
-      const side = await page.locator('.tabbar').boundingBox();
+      const side = await page.locator('#view-trip .tabbar').boundingBox();
       const card = await page.locator('.subview[data-sub="home"] .daycards .dcard').first().boundingBox();
       if (card.x < side.x + side.width) throw new Error(`card at ${card.x}, sidebar ends ${side.x + side.width}`);
     });
@@ -70,7 +70,7 @@ async function phoneSequence(page) {
     });
 
     await t.step('a day sets its stops beside its map', async () => {
-      await page.click('.tabbar .tab[data-tab="home"]');
+      await page.click('#view-trip .tabbar .tab[data-tab="home"]');
       await page.click('.subview[data-sub="home"] .daycards .dcard >> nth=0');
       await page.waitForSelector('.subview[data-sub="d1"] .daymap');
       await page.waitForTimeout(300);
@@ -113,10 +113,10 @@ async function phoneSequence(page) {
     });
 
     await t.step('on a phone the bar is at the bottom and the sidebar extras are hidden', async () => {
-      const box = await page.locator('.tabbar').boundingBox();
+      const box = await page.locator('#view-trip .tabbar').boundingBox();
       if (box.y < 800) throw new Error('bar is at y=' + box.y);
-      if (await page.locator('.sb-brand').isVisible()) throw new Error('brand shows on a phone');
-      if (await page.locator('.tab-lib').isVisible()) throw new Error('shelf link shows on a phone');
+      if (await page.locator('#view-trip .sb-brand').isVisible()) throw new Error('brand shows on a phone');
+      if (await page.locator('#view-trip .tab-lib').isVisible()) throw new Error('shelf link shows on a phone');
     });
 
     await t.step('on a phone a day still puts the map under the list', async () => {

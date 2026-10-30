@@ -38,18 +38,18 @@ function longTrip() {
   await openTrip(page, '導覽測試');
 
   await t.step('the tab bar is there and reachable from the home screen', async () => {
-    const tabs = await page.locator('.tabbar .tab').count();
+    const tabs = await page.locator('#view-trip .tabbar .tab').count();
     if (tabs < 4) throw new Error('only ' + tabs + ' tabs');
   });
 
   await t.step('it stays put when you open a day', async () => {
     await page.click('.subview[data-sub="home"] .daycards .dcard >> nth=0');
     await page.waitForSelector('.subview[data-sub="d1"] .stops');
-    if (!await page.locator('.tabbar').isVisible()) throw new Error('tab bar vanished');
+    if (!await page.locator('#view-trip .tabbar').isVisible()) throw new Error('tab bar vanished');
   });
 
   await t.step('a day screen still counts as the 行程 tab', async () => {
-    const on = await page.locator('.tabbar .tab.on').getAttribute('data-tab');
+    const on = await page.locator('#view-trip .tabbar .tab.on').getAttribute('data-tab');
     if (on !== 'home') throw new Error('lit tab is ' + on);
   });
 
@@ -90,10 +90,10 @@ function longTrip() {
        never scrolls the page to reach it — clicking a day card makes
        Playwright scroll the card into view first, which moves the very
        position this is measuring. */
-    await page.click('.tabbar .tab[data-tab="check"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="check"]');
     await page.waitForSelector('.subview[data-sub="check"]');
     await page.waitForTimeout(150);
-    await page.click('.tabbar .tab[data-tab="home"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="home"]');
     await page.waitForSelector('.subview[data-sub="home"] .daycards');
     await page.waitForTimeout(250);
 
@@ -102,7 +102,7 @@ function longTrip() {
   });
 
   await t.step('a screen you have not seen still opens at the top', async () => {
-    await page.click('.tabbar .tab[data-tab="check"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="check"]');
     await page.waitForSelector('.subview[data-sub="check"]');
     await page.waitForTimeout(200);
     const y = await page.evaluate(() => window.pageYOffset);

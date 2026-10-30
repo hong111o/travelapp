@@ -51,6 +51,17 @@
       var node = U.el('view-' + v);
       if (node) node.classList.toggle('active', v === name);
     });
+    /* The trips page's bar lives outside its view (it is fixed to the
+       window), so it follows the view by hand. */
+    var bar = document.querySelector('.libbar');
+    if (bar) bar.hidden = name !== 'library';
+    document.body.classList.toggle('on-library', name === 'library');
+    /* Arrange mode belongs to the trip screen; never leave it switched on. */
+    if (name !== 'trip' && Render.isArranging()) {
+      Render.setArranging(false);
+      document.body.classList.remove('arranging-now');
+      current = null;
+    }
   }
 
   /* Where you were on each screen of the current trip. The app used to
@@ -189,6 +200,11 @@
 
     /* Re-render only when switching trips or after an edit, so moving
        between days keeps the maps that are already built. */
+    if (Render.isArranging() && (subId || 'home') !== 'home') {
+      Render.setArranging(false);
+      document.body.classList.remove('arranging-now');
+      current = null;
+    }
     if (!current || current.id !== trip.id || current.updatedAt !== trip.updatedAt) {
       Widgets.stopAll();
       Widgets.resetMaps();
@@ -199,7 +215,7 @@
       Render.trip(trip, U.el('view-trip'));
       showView('trip');
       Widgets.loadWeather(trip.place);
-      Widgets.loadFX(trip.currency);
+      Widgets.loadFX(trip);
       Widgets.startCountdown(trip.departure);
       paintCover(trip);
       startTodayTicker(trip);
@@ -638,6 +654,23 @@
       ta.remove();
       done();
     } catch (e) { U.toast('copy 唔到', true); }
+  }
+
+  function toggleTodo(uid) {
+    if (!current || !uid) return;
+    var item = current.todos.filter(function (d) { return d.uid === uid; })[0];
+    if (!item) return;
+    if (!Store.setTodoDone(current.id, uid, !item.done)) return;
+    var fresh = Store.get(current.id);
+    if (!fresh) return;
+    current = fresh;
+    Render.setActiveTrip(fresh);
+    /* Repaint the card alone; the trip did not change, only a record. */
+    var card = document.querySelector('#view-trip .subview[data-sub="home"] .card.book');
+    if (!card) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.todosHTML(fresh);
+    if (wrap.firstChild) card.replaceWith(wrap.firstChild);
   }
 
   function addPacking() {
@@ -1232,6 +1265,12 @@
     else if (act === 'edit') { go('#/edit/' + encodeURIComponent(id || (current && current.id))); }
     else if (act === 'library') { go('#/'); }
     else if (act === 'cover') { e.preventDefault(); openCoverSheet(); }
+    else if (act === 'lay-start') { e.preventDefault(); startArrange(); }
+    else if (act === 'lay-done') { e.preventDefault(); endArrange(); }
+    else if (act === 'lay-reset') { e.preventDefault(); Layout.reset(); repaintHome(); U.toast('排返預設次序'); }
+    else if (act === 'lay-up') { e.preventDefault(); nudge(btn.getAttribute('data-key'), -1); }
+    else if (act === 'lay-down') { e.preventDefault(); nudge(btn.getAttribute('data-key'), 1); }
+    else if (act === 'lay-col') { e.preventDefault(); Layout.setCol(btn.getAttribute('data-key'), btn.getAttribute('data-col')); repaintHome(); }
     else if (act === 'home') { go('#/trip/' + encodeURIComponent(current.id)); }
     else if (act === 'day') { go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(btn.getAttribute('data-day'))); }
     else if (act === 'food') { go('#/trip/' + encodeURIComponent(current.id) + '/food'); }
@@ -1248,6 +1287,7 @@
     else if (act === 'bk-del') { e.preventDefault(); deleteBooking(btn.getAttribute('data-uid')); }
     else if (act === 'copyref') { e.preventDefault(); copyRef(btn.getAttribute('data-ref'), btn); }
     else if (act === 'pack') { e.preventDefault(); togglePacked(btn.getAttribute('data-uid')); }
+    else if (act === 'todo') { e.preventDefault(); toggleTodo(btn.getAttribute('data-uid')); }
     else if (act === 'pack-add') { e.preventDefault(); addPacking(); }
     else if (act === 'pack-del') { e.preventDefault(); deletePacking(btn.getAttribute('data-uid')); }
     else if (act === 'share') { e.preventDefault(); shareTrip(btn); }
@@ -1389,16 +1429,147 @@
 
   /* --- boot ------------------------------------------------------ */
 
+  /* --- arranging the home cards --------------------------------------- */
+
+  /* Repaint the home screen alone, in place. Arrange mode collapses every
+     card to its bar, so nothing in it needs the live widgets. */
+  function repaintHome() {
+    if (!current) return;
+    var view = document.querySelector('#view-trip .subview[data-sub="home"]');
+    if (!view) return;
+    var y = window.pageYOffset;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Render.homeHTML(current);
+    var next = wrap.firstChild;
+    var on = view.classList.contains('active');
+    next.classList.toggle('active', on);
+    next.style.display = on ? 'block' : 'none';
+    view.replaceWith(next);
+    window.scrollTo(0, y);
+  }
+
+  /* Leaving arrange mode rebuilds the whole trip, so the weather, the
+     converter and the maps are drawn into the cards where they now sit. */
+  function rebuildTrip() {
+    if (!current) return;
+    var id = current.id;
+    current = null;
+    openTrip(id, 'home');
+  }
+
+  function startArrange() {
+    Render.setArranging(true);
+    document.body.classList.add('arranging-now');
+    repaintHome();
+    var first = document.querySelector('#view-trip .hs-bar .iconbtn');
+    if (first) first.focus();
+  }
+
+  function endArrange() {
+    Render.setArranging(false);
+    document.body.classList.remove('arranging-now');
+    rebuildTrip();
+  }
+
+  function nudge(key, dir) {
+    var list = Layout.get().filter(function (x) {
+      return document.querySelector('#view-trip [data-card="' + x.k + '"]');
+    });
+    /* On a desktop a nudge stays within the card's own column. */
+    var col = null;
+    for (var i = 0; i < list.length; i++) if (list[i].k === key) col = list[i].col;
+    var desk = !document.querySelector('#view-trip .harrange');
+    var keys = list.filter(function (x) { return !desk || x.col === col; }).map(function (x) { return x.k; });
+    var at = keys.indexOf(key), to = at + dir;
+    if (at < 0 || to < 0 || to >= keys.length) return;
+    Layout.moveKey(key, keys[to]);
+    repaintHome();
+    var again = document.querySelector('#view-trip [data-act="lay-' + (dir < 0 ? 'up' : 'down') + '"][data-key="' + key + '"]');
+    if (again) again.focus();
+  }
+
+  function onLayoutDrop(list, from, to) {
+    if (!current) return;
+    var keys = Render.arrangedKeys(current, list);
+    if (!keys[from] || !keys[to]) return;
+    Layout.moveKey(keys[from], keys[to]);
+    repaintHome();
+  }
+
+  /* --- the trips page's own bar ------------------------------------- */
+
+  function wireLibBar() {
+    var bar = document.querySelector('.libbar');
+    if (!bar) return;
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-lib]') : null;
+      if (!b) return;
+      var what = b.getAttribute('data-lib');
+      if (what === 'trips') { go('#/'); window.scrollTo(0, 0); }
+      else if (what === 'new') go('#/new');
+      else if (what === 'import') U.el('file-import').click();
+      else if (what === 'paste') {
+        togglePaste(true);
+        U.el('paste-panel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+      else if (what === 'hotels') openHotelPicker();
+      else if (what === 'sync') openSyncSheet();
+      else if (what === 'settings') openSettingsSheet();
+    });
+  }
+
+  /* Settings gathers what used to sit only in the footer. The footer keeps
+     its buttons — they are where people already look — so these simply
+     press them rather than holding a second copy of each behaviour. */
+  function openSettingsSheet() {
+    var wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="sheet" id="set-sheet" aria-labelledby="set-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="set-sheet-h">⚙️ 設定</h2>' +
+        '<button class="iconbtn" data-set="close" aria-label="閂">✕</button></div>' +
+      '<div class="cvopts">' +
+        '<button class="btn" data-set="theme">' + U.esc(U.el('btn-theme').textContent) + '</button>' +
+        '<button class="btn" data-set="restore">↩️ 復原上一次儲存</button>' +
+        '<button class="btn" data-set="layout">🧩 卡片排位還原預設</button>' +
+        '<button class="btn" data-set="update">🔄 檢查更新</button>' +
+      '</div>' +
+      '<p class="tinynote">Travel Marvel ' + U.esc(U.el('app-ver').textContent || '') +
+        ' · 資料存喺你部機' + (typeof Sync !== 'undefined' && Sync.enabled() ? '，並同步去你嘅 GitHub' : '') + '</p>' +
+      '</div></div>';
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.settings = U.trapFocus(sheet, closeSettingsSheet);
+    sheet.querySelector('[data-set="theme"]').focus();
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-set]') : null;
+      if (!b) { if (e.target === sheet) closeSettingsSheet(); return; }
+      var what = b.getAttribute('data-set');
+      if (what === 'close') { closeSettingsSheet(); return; }
+      if (what === 'theme') { U.el('btn-theme').click(); b.textContent = U.el('btn-theme').textContent; return; }
+      if (what === 'layout') { Layout.reset(); U.toast('卡片已經排返預設次序'); return; }
+      closeSettingsSheet();
+      if (what === 'restore') U.el('btn-restore').click();
+      if (what === 'update') U.el('btn-update').click();
+    });
+  }
+
+  function closeSettingsSheet() {
+    if (releaseTrap.settings) { releaseTrap.settings(); releaseTrap.settings = null; }
+    var sheet = U.el('set-sheet');
+    if (sheet) sheet.remove();
+  }
+
   function init() {
     Store.seedIfFirstRun();
     Store.migrateUids();
     DragSort.init();
+    DragSort.register('layout', onLayoutDrop);
     Offline.init();
 
     document.addEventListener('click', onClick);
     window.addEventListener('hashchange', route);
 
     U.el('btn-new').addEventListener('click', function () { go('#/new'); });
+    wireLibBar();
 
     var fileInput = U.el('file-import');
     U.el('btn-import').addEventListener('click', function () { fileInput.click(); });

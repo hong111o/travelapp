@@ -79,12 +79,108 @@
 
   /* --- FX converter ------------------------------------------- */
 
-  function loadFX(cur) {
+  /* --- currency ------------------------------------------------------
+     Left is the money in front of you, right is the money you think in.
+     Left defaults to the trip's currency and can be changed per trip;
+     right is yours and follows you from trip to trip. */
+
+  var HOME_KEY = 'tripbook.fx.home';
+  var COMMON = ['HKD', 'GBP', 'EUR', 'USD', 'JPY', 'CNY', 'TWD', 'KRW', 'SGD', 'THB',
+    'AUD', 'CAD', 'CHF', 'NZD', 'MYR', 'VND', 'PHP', 'IDR', 'INR', 'AED', 'TRY',
+    'CZK', 'HUF', 'PLN', 'SEK', 'NOK', 'DKK', 'ISK', 'MXN', 'BRL', 'ZAR', 'MOP'];
+
+  function pref(k, v) {
+    try {
+      if (v === undefined) return localStorage.getItem(k);
+      localStorage.setItem(k, v);
+    } catch (e) { /* storage blocked: the choice just will not stick */ }
+    return null;
+  }
+
+  /* Every currency the browser knows, with the ones people actually
+     travel with first, each labelled with its Chinese name. */
+  var allCodes = null;
+  function currencyList() {
+    if (allCodes) return allCodes;
+    var all = [];
+    try { if (Intl.supportedValuesOf) all = Intl.supportedValuesOf('currency'); } catch (e) { /* old engine */ }
+    var rest = all.filter(function (c) { return COMMON.indexOf(c) < 0; });
+    allCodes = { common: COMMON.slice(), rest: rest };
+    return allCodes;
+  }
+
+  var names = null;
+  function nameOf(code) {
+    try {
+      if (!names && Intl.DisplayNames) names = new Intl.DisplayNames(['zh-HK', 'zh-TW', 'en'], { type: 'currency' });
+      var n = names ? names.of(code) : '';
+      return n && n !== code ? n : '';
+    } catch (e) { return ''; }
+  }
+
+  function fillSelect(sel, chosen) {
+    var list = currencyList();
+    function opt(c) {
+      var n = nameOf(c);
+      return '<option value="' + c + '"' + (c === chosen ? ' selected' : '') + '>' +
+        c + (n ? ' · ' + U.esc(n) : '') + '</option>';
+    }
+    var html = '<optgroup label="常用">' + list.common.map(opt).join('') + '</optgroup>';
+    if (list.rest.length) html += '<optgroup label="全部">' + list.rest.map(opt).join('') + '</optgroup>';
+    /* A code the list does not have (an old engine) still has to show. */
+    if (list.common.indexOf(chosen) < 0 && list.rest.indexOf(chosen) < 0) html = opt(chosen) + html;
+    sel.innerHTML = html;
+  }
+
+  /* Rates are fetched per base currency and kept, so the converter still
+     answers offline with the last rate it saw, and changing the other
+     side needs no network at all. */
+  function cachedRates(base) {
+    try { return JSON.parse(localStorage.getItem('tripbook.fx.rates.' + base) || 'null'); }
+    catch (e) { return null; }
+  }
+
+  function fetchRates(base) {
+    var lo = base.toLowerCase();
+    return fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' + lo + '.json')
+      .then(function (r) { if (!r.ok) throw new Error('fx ' + r.status); return r.json(); })
+      .then(function (j) {
+        var raw = j && j[lo];
+        if (!raw) throw new Error('fx: no table');
+        var rates = {};
+        Object.keys(raw).forEach(function (k) { rates[k.toUpperCase()] = raw[k]; });
+        return { date: j.date || '', rates: rates };
+      })
+      .catch(function () {
+        /* Secondary source, different vendor — one of the two is
+           usually reachable even on flaky hotel wifi. */
+        return fetch('https://open.er-api.com/v6/latest/' + base)
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (!j || !j.rates) throw new Error('fx fallback: no table');
+            return { date: String(j.time_last_update_utc || '').slice(0, 16), rates: j.rates };
+          });
+      })
+      .then(function (table) {
+        try { localStorage.setItem('tripbook.fx.rates.' + base, JSON.stringify(table)); } catch (e) { /* full */ }
+        return table;
+      });
+  }
+
+  function loadFX(trip) {
     var rateEl = U.el('fx-rate'), updEl = U.el('fx-upd');
     var a = U.el('fx-a'), b = U.el('fx-b');
-    if (!a || !b || !cur.base || !cur.quote) return;
+    var ca = U.el('fx-ca'), cb = U.el('fx-cb');
+    if (!a || !b || !ca || !cb) return;
 
-    var rate = null;
+    var cur = (trip && trip.currency) || {};
+    var localKey = 'tripbook.fx.local.' + (trip && trip.id);
+    var base = pref(localKey) || cur.base || 'EUR';
+    var quote = pref(HOME_KEY) || cur.quote || 'HKD';
+    var rate = null, token = 0;
+
+    fillSelect(ca, base);
+    fillSelect(cb, quote);
 
     function calc(from) {
       if (rate == null) return;
@@ -97,40 +193,65 @@
       }
     }
 
-    function apply(r, dateStr) {
+    function show(table, stale) {
+      var r = base === quote ? 1 : table && table.rates && table.rates[quote];
+      if (typeof r !== 'number') {
+        rate = null;
+        if (rateEl) rateEl.textContent = '冇呢對貨幣嘅匯率';
+        b.value = '';
+        return;
+      }
       rate = r;
-      if (rateEl) rateEl.textContent = '1 ' + cur.base + ' ≈ ' + rate.toFixed(4) + ' ' + cur.quote;
-      if (updEl) updEl.textContent = '參考匯率' + (dateStr ? '（' + dateStr + '）' : '');
+      if (rateEl) rateEl.textContent = '1 ' + base + ' ≈ ' + (r < 0.01 ? r.toPrecision(3) : r.toFixed(4)) + ' ' + quote;
+      if (updEl) updEl.textContent = (stale ? '上次嘅匯率' : '參考匯率') +
+        (table && table.date ? '（' + table.date + '）' : '') + (stale ? '，上網會更新' : '');
       calc('a');
+    }
+
+    function refresh() {
+      var mine = ++token;
+      var cached = cachedRates(base);
+      if (cached) show(cached, true);
+      else if (rateEl) rateEl.textContent = '載入中…';
+      if (base === quote) { show({ rates: {}, date: '' }, false); return; }
+      fetchRates(base).then(function (table) {
+        if (mine === token) show(table, false);
+      }).catch(function (err) {
+        console.warn('[fx]', err);
+        if (mine === token && !cached && rateEl) rateEl.textContent = '需上網更新';
+      });
     }
 
     a.addEventListener('input', function () { calc('a'); });
     b.addEventListener('input', function () { calc('b'); });
 
-    var lo = cur.base.toLowerCase(), qlo = cur.quote.toLowerCase();
-    fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' + lo + '.json')
-      .then(function (r) { if (!r.ok) throw new Error('fx ' + r.status); return r.json(); })
-      .then(function (j) {
-        var v = j && j[lo] && j[lo][qlo];
-        if (typeof v !== 'number') throw new Error('fx: no ' + qlo);
-        apply(v, j.date);
-      })
-      .catch(function () {
-        /* Secondary source, different vendor — one of the two is
-           usually reachable even on flaky hotel wifi. */
-        return fetch('https://open.er-api.com/v6/latest/' + cur.base)
-          .then(function (r) { return r.json(); })
-          .then(function (j) {
-            var v = j && j.rates && j.rates[cur.quote];
-            if (typeof v !== 'number') throw new Error('fx fallback: no ' + cur.quote);
-            apply(v, String(j.time_last_update_utc || '').slice(0, 16));
-          });
-      })
-      .catch(function (err) {
-        console.warn('[fx]', err);
-        if (rateEl) rateEl.textContent = '需上網更新';
-      });
+    ca.addEventListener('change', function () {
+      base = ca.value;
+      /* The trip's own currency is the default, so choosing it again
+         clears the override rather than pinning a copy of it. */
+      if (base === cur.base) { try { localStorage.removeItem(localKey); } catch (e) { /* ignore */ } }
+      else pref(localKey, base);
+      refresh();
+    });
+    cb.addEventListener('change', function () {
+      quote = cb.value;
+      pref(HOME_KEY, quote);
+      var cached = cachedRates(base);
+      if (cached && cached.rates && cached.rates[quote] != null) show(cached, false);
+      else refresh();
+    });
+
+    var swap = U.el('fx-swap');
+    if (swap) swap.addEventListener('click', function () {
+      /* Swap the amounts, not the currencies: the sides keep their
+         meaning (there, and home), the number you typed moves across. */
+      var t = a.value; a.value = b.value; b.value = t;
+      calc('b');
+    });
+
+    refresh();
   }
+
 
   /* --- countdown ----------------------------------------------- */
 

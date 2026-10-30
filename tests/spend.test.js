@@ -38,7 +38,7 @@ const money = '.subview[data-sub="money"]';
   };
 
   await t.step('the money tab opens an empty ledger', async () => {
-    await page.click('.tabbar .tab[data-tab="money"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="money"]');
     await page.waitForSelector(money);
     const total = await page.textContent(`${money} .ms-n`);
     if (!/0/.test(total)) throw new Error('opening total reads ' + total);
@@ -105,7 +105,7 @@ const money = '.subview[data-sub="money"]';
   });
 
   await t.step('logging from a day attaches the spend to that day', async () => {
-    await page.click('.tabbar .tab[data-tab="home"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="home"]');
     await page.waitForSelector('.subview[data-sub="home"]');
     await page.goto(BASE + '/index.html#/trip/spend/d2');
     await page.waitForSelector('.subview[data-sub="d2"] .stops');
@@ -119,7 +119,7 @@ const money = '.subview[data-sub="money"]';
   });
 
   await t.step('and it shows under that day', async () => {
-    await page.click('.tabbar .tab[data-tab="money"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="money"]');
     await page.waitForSelector(money);
     const days = await page.locator(`${money} .kvb`).allTextContents();
     if (!days.some(d => /Day 2/.test(d) && /9/.test(d))) throw new Error('day rows: ' + days.join(' | '));

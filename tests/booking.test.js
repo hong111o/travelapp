@@ -135,7 +135,7 @@ const check = '.subview[data-sub="check"]';
   /* --- packing --- */
 
   await t.step('the 清單 screen carries a packing list', async () => {
-    await page.click('.tabbar .tab[data-tab="check"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="check"]');
     await page.waitForSelector(check);
     if (!await page.locator(`${check} .packcard`).count()) throw new Error('no packing card');
   });

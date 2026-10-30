@@ -63,7 +63,7 @@ const TRIP = {
   });
 
   await t.step('the tab bar marks which tab you are on', async () => {
-    const current = await page.locator('.tabbar .tab[aria-current="page"]').count();
+    const current = await page.locator('#view-trip .tabbar .tab[aria-current="page"]').count();
     if (current !== 1) throw new Error(current + ' tabs claim to be current');
   });
 
@@ -121,7 +121,7 @@ const TRIP = {
   });
 
   await t.step('the packing list is a list, and each row names its item', async () => {
-    await page.click('.tabbar .tab[data-tab="check"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="check"]');
     await page.waitForSelector('.subview[data-sub="check"]');
     await page.fill('#pk-new', '轉換插頭');
     await page.press('#pk-new', 'Enter');
@@ -136,7 +136,7 @@ const TRIP = {
   });
 
   await t.step('decorative chevrons are hidden from the reader', async () => {
-    await page.click('.tabbar .tab[data-tab="home"]');
+    await page.click('#view-trip .tabbar .tab[data-tab="home"]');
     await page.waitForSelector('.subview[data-sub="home"]');
     const exposed = await page.evaluate(() =>
       [...document.querySelectorAll('#view-trip .subview.active .arrow')]

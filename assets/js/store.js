@@ -247,6 +247,25 @@
     return false;
   }
 
+  /* Tick a 要訂嘅嘢 item once it is booked. Skips updatedAt for the same
+     reason as setDone: it records what you did, it does not change the
+     plan, and moving updatedAt would rebuild the page under you. */
+  function setTodoDone(tripId, uid, done) {
+    var list = readRaw();
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i] || list[i].id !== tripId) continue;
+      /* Old trips carry todos without uids; normalise once so the uid the
+         page was rendered with is the one stored. */
+      var t = Schema.normalize(list[i]);
+      var hit = false;
+      t.todos.forEach(function (d) { if (d.uid === uid) { d.done = !!done; hit = true; } });
+      if (!hit) return false;
+      list[i].todos = t.todos;
+      return writeRaw(list);
+    }
+    return false;
+  }
+
   /* --- what it cost ---------------------------------------------
      Spend is a record of the day, like a tick or a note, so it skips
      updatedAt for the same reason: the plan has not changed, and
@@ -339,7 +358,13 @@
       if (!t || !Array.isArray(t.days)) return false;
       return t.days.some(function (d) {
         return (d && Array.isArray(d.stops) ? d.stops : []).some(function (s) { return s && !s.uid; });
-      }) || ((t.food && Array.isArray(t.food.picks)) ? t.food.picks : []).some(function (p) { return p && !p.uid; });
+      }) || ((t.food && Array.isArray(t.food.picks)) ? t.food.picks : []).some(function (p) { return p && !p.uid; }) ||
+        /* Every list whose rows are addressed by uid. A row normalised
+           without a stored uid gets a fresh random one on every read, so
+           the button rendered with one uid would write to another. */
+        ['todos', 'packing', 'bookings', 'spend'].some(function (k) {
+          return Array.isArray(t[k]) && t[k].some(function (x) { return x && typeof x === 'object' && !x.uid; });
+        });
     });
     if (!needs) return;
     writeRaw(list.map(Schema.normalize));
@@ -447,6 +472,7 @@
     addSpend: addSpend, removeSpend: removeSpend, setBudget: setBudget,
     addBooking: addBooking, removeBooking: removeBooking,
     addPacking: addPacking, removePacking: removePacking, setPacked: setPacked,
+    setTodoDone: setTodoDone,
     clearProgress: clearProgress, migrateUids: migrateUids,
     backupInfo: backupInfo, restoreBackup: restoreBackup,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON
