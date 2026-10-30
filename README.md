@@ -38,6 +38,7 @@
 | 🎒 **執嘢清單** | 要帶嘅嘢打返剔，下次複製行程就跟住嚟 |
 | 🌙 **深色模式** | 跟系統，或者自己撳。夜機、臥鋪、關燈之後都睇得舒服 |
 | 🏞️ **城市封面** | 自動用 Wikipedia 上面嗰個城市嘅風景相（有攝影師同授權註明），存低離線都睇到；撳「🖼 封面」可以換自己張相或者唔要 |
+| 🛂 **旅行護照** | 地圖畫晒你去過嘅路線、國旗、總里數同交通時間；以前嘅旅程自己加，Travel Marvel 嘅行程過咗日子會自動蓋印 |
 | ☁️ **同步** | 行程存去你自己 GitHub 嘅私人 Gist，用密碼加密，幾部機自動同步（相片除外） |
 | 🏨 **酒店比較** | 貼酒店連結，經 AI 攞價錢評分，並排比較，仲計埋離你嘅景點幾遠；一撳設做行程酒店 |
 | 🧩 **卡片排位** | 首頁啲卡拖嚟拖去排成你鍾意嘅次序，所有行程通用，可以還原預設 |
@@ -608,9 +609,10 @@ data/
 tests/
   run.js                    起個 server、逐個 suite 行、報結果
   *.test.js                 Playwright 行真 app（smoke / store / nav /
-                            spend / booking / a11y / theme / desktop / cover / tools / hotels / sync）
+                            spend / booking / a11y / theme / desktop / cover / tools / hotels / sync / passport）
 tools/
   bundle-trips.js           打包 script
+  build-passport-data.js    整護照用嘅機場同世界地圖資料（data/places.js、data/world.js）
 ```
 
 冇 build step、冇 npm dependency、冇 framework。改完直接 refresh 就睇到。
@@ -626,3 +628,5 @@ Leaflet 同 Fraunces 已經 vendored 入 repo。
 
 Leaflet 用 BSD-2-Clause，Fraunces 用 SIL OFL 1.1 —— licence 檔案喺
 `assets/vendor/leaflet/LICENSE` 同 `assets/fonts/FRAUNCES-LICENSE`。
+
+護照用嘅機場資料嚟自 airportsdata（MIT），世界地圖嚟自 world-atlas（ISC）/ Natural Earth（公有領域）—— 詳情見 `data/LICENSES.md`。

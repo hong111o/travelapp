@@ -47,15 +47,24 @@
   /* --- view switching ------------------------------------------- */
 
   function showView(name) {
-    ['library', 'trip', 'editor'].forEach(function (v) {
+    ['library', 'trip', 'editor', 'passport'].forEach(function (v) {
       var node = U.el('view-' + v);
       if (node) node.classList.toggle('active', v === name);
     });
-    /* The trips page's bar lives outside its view (it is fixed to the
-       window), so it follows the view by hand. */
+    /* The general bar lives outside the views (it is fixed to the
+       window), so it follows the view by hand: on the trips page and on
+       the passport, which are the two top-level pages. */
+    var top = name === 'library' || name === 'passport';
     var bar = document.querySelector('.libbar');
-    if (bar) bar.hidden = name !== 'library';
-    document.body.classList.toggle('on-library', name === 'library');
+    if (bar) {
+      bar.hidden = !top;
+      Array.prototype.forEach.call(bar.querySelectorAll('[data-lib="trips"],[data-lib="passport"]'), function (b) {
+        var on = (b.getAttribute('data-lib') === 'trips') === (name === 'library');
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-current', on ? 'page' : 'false');
+      });
+    }
+    document.body.classList.toggle('on-library', top);
     /* Arrange mode belongs to the trip screen; never leave it switched on. */
     if (name !== 'trip' && Render.isArranging()) {
       Render.setArranging(false);
@@ -340,6 +349,11 @@
       if (!t) { U.toast('搵唔到呢個行程', true); go('#/'); return; }
       showView('editor');
       Editor.open(t);
+      return;
+    }
+
+    if (parts[0] === 'passport') {
+      openPassport();
       return;
     }
 
@@ -1258,6 +1272,7 @@
     var btn = e.target.closest ? e.target.closest('[data-act]') : null;
     if (!btn) return;
     if (U.el('view-editor').contains(btn)) return;  /* editor owns its own clicks */
+    if (U.el('view-passport').contains(btn)) return;  /* so does the passport */
 
     var act = btn.getAttribute('data-act');
     var id = btn.getAttribute('data-id');
@@ -1716,6 +1731,7 @@
      page out from under you for nothing. */
   function onPulled() {
     renderLibrary();
+    if (U.el('view-passport').classList.contains('active') && global.TM_PLACES) paintPassport();
     if (!current) return;
     var fresh = Store.get(current.id);
     if (!fresh) { if (location.hash.indexOf('#/trip/') === 0) go('#/'); return; }
@@ -1723,6 +1739,144 @@
     var sub = lastSub || 'home';
     current = null;
     openTrip(fresh.id, sub);
+  }
+
+  /* --- the passport ---------------------------------------------------- */
+
+  var passportYear = '';
+
+  function openPassport() {
+    showView('passport');
+    var view = U.el('view-passport');
+    if (!view.firstChild) view.innerHTML = '<div class="wrap"><p class="tinynote" style="padding:40px 0">載入緊護照…</p></div>';
+    Passport.load().then(function () {
+      paintPassport();
+    }, function (err) {
+      view.innerHTML = '<div class="wrap"><div class="card empty"><h2>開唔到護照</h2><p class="tinynote">' +
+        U.esc(err.message) + '。上網開一次，之後離線都用得。</p></div></div>';
+    });
+  }
+
+  function paintPassport() {
+    var view = U.el('view-passport');
+    var y = window.pageYOffset;
+    view.innerHTML = Passport.viewHTML(passportYear);
+    window.scrollTo(0, y);
+  }
+
+  function journeyByKey(key) {
+    return Passport.all().filter(function (j) { return (j.auto ? j.key : j.uid) === key; })[0];
+  }
+
+  function openJourneySheet(j) {
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Passport.journeySheetHTML(j);
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.pj = U.trapFocus(sheet, closeJourneySheet);
+    Passport.wirePlaceField(U.el('pj-from'));
+    Passport.wirePlaceField(U.el('pj-to'));
+
+    var mode = (j && j.mode) || 'flight';
+    function showAir() { sheet.querySelector('.pj-air').classList.toggle('noair', mode !== 'flight'); }
+    showAir();
+    /* The sheet may already be gone by then (a quick delete). */
+    setTimeout(function () { var f = U.el(j ? 'pj-date' : 'pj-from'); if (f) f.focus(); }, 60);
+
+    sheet.addEventListener('click', function (e) {
+      var m = e.target.closest ? e.target.closest('[data-mode]') : null;
+      if (m) {
+        mode = m.getAttribute('data-mode');
+        Array.prototype.forEach.call(sheet.querySelectorAll('[data-mode]'), function (b) { b.classList.toggle('on', b === m); });
+        showAir();
+        return;
+      }
+      var b = e.target.closest ? e.target.closest('[data-pj]') : null;
+      if (!b) { if (e.target === sheet) closeJourneySheet(); return; }
+      var what = b.getAttribute('data-pj');
+      if (what === 'close') { closeJourneySheet(); return; }
+      if (what === 'delete') {
+        if (!confirm(j.auto ? '喺護照度唔計呢段？\n\n行程本身唔會改。' : '刪除呢段旅程？')) return;
+        Passport.remove(j);
+        closeJourneySheet();
+        paintPassport();
+        return;
+      }
+      var err = U.el('pj-err');
+      err.hidden = true;
+      var from = Passport.placeOf('pj-from'), to = Passport.placeOf('pj-to');
+      var date = U.el('pj-date').value;
+      var fail = !from ? '「由」要喺建議入面揀一個地方' : !to ? '「去」要喺建議入面揀一個地方' :
+        !date ? '填個出發日期' : '';
+      var back = U.el('pj-back') ? U.el('pj-back').value : '';
+      if (!fail && back && back < date) fail = '回程日期早過出發日期';
+      if (fail) { err.textContent = fail; err.hidden = false; return; }
+
+      var h = Number(U.el('pj-h').value) || 0, mi = Number(U.el('pj-m').value) || 0;
+      var fnRaw = (U.el('pj-fn').value || '').toUpperCase().replace(/\s+/g, '');
+      var row = {
+        uid: j && !j.auto ? j.uid : '', autoKey: j && j.auto ? j.key : (j && j.autoKey) || '',
+        from: from, to: to, date: date, mode: mode,
+        flightNo: mode === 'flight' ? fnRaw : '', airline: mode === 'flight' ? fnRaw.slice(0, 2) : '',
+        minutes: h * 60 + mi || null, note: ''
+      };
+      Passport.saveJourney(row);
+      if (back) {
+        Passport.saveJourney({ from: to, to: from, date: back, mode: mode, flightNo: '', airline: row.airline, minutes: row.minutes });
+      }
+      closeJourneySheet();
+      paintPassport();
+      U.toast(back ? '記低咗來回兩段' : '記低咗');
+    });
+  }
+
+  function closeJourneySheet() {
+    if (releaseTrap.pj) { releaseTrap.pj(); releaseTrap.pj = null; }
+    var sheet = U.el('pj-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  function openHolderSheet() {
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Passport.holderSheetHTML();
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.ph = U.trapFocus(sheet, closeHolderSheet);
+    Passport.wirePlaceField(U.el('ph-home'));
+    setTimeout(function () { var f = U.el('ph-name'); if (f) f.focus(); }, 60);
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-ph]') : null;
+      if (!b) { if (e.target === sheet) closeHolderSheet(); return; }
+      if (b.getAttribute('data-ph') === 'close') { closeHolderSheet(); return; }
+      var typed = (U.el('ph-home').value || '').trim();
+      var home = Passport.placeOf('ph-home');
+      if (typed && !home) {
+        var err = U.el('ph-err'); err.textContent = '「住喺邊」要喺建議入面揀一個地方'; err.hidden = false; return;
+      }
+      Passport.setHolder(U.el('ph-name').value, home);
+      closeHolderSheet();
+      paintPassport();
+    });
+  }
+
+  function closeHolderSheet() {
+    if (releaseTrap.ph) { releaseTrap.ph(); releaseTrap.ph = null; }
+    var sheet = U.el('ph-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  /* The passport is its own page, outside any trip, so its buttons are
+     handled here rather than in the trip view's click handler. */
+  function wirePassport() {
+    U.el('view-passport').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-act]') : null;
+      if (!b) return;
+      var act = b.getAttribute('data-act');
+      if (act === 'pp-year') { passportYear = b.getAttribute('data-year'); paintPassport(); }
+      else if (act === 'pj-add') openJourneySheet(null);
+      else if (act === 'pj-edit') { var j = journeyByKey(b.getAttribute('data-key')); if (j) openJourneySheet(j); }
+      else if (act === 'pp-holder') openHolderSheet();
+    });
   }
 
   /* --- arranging the home cards --------------------------------------- */
@@ -1808,6 +1962,7 @@
         togglePaste(true);
         U.el('paste-panel').scrollIntoView({ block: 'start', behavior: 'smooth' });
       }
+      else if (what === 'passport') go('#/passport');
       else if (what === 'hotels') openHotelPicker();
       else if (what === 'sync') openSyncSheet();
       else if (what === 'settings') openSettingsSheet();
@@ -1915,6 +2070,7 @@
     wireTheme();
     wireRestore();
     wireSwipe();
+    wirePassport();
 
     Sync.onStatus(function (st) {
       paintSyncDot(st);

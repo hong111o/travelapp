@@ -191,6 +191,13 @@
     return { trips: trips, deleted: deleted, localChanged: localChanged, remoteChanged: remoteChanged };
   }
 
+  function mergePassport(local, remote) {
+    var lt = (local && local.touchedAt) || '', rt = (remote && remote.touchedAt) || '';
+    if (!remote) return { value: local, localChanged: false, remoteChanged: !!lt };
+    if (!local || rt > lt) return { value: remote, localChanged: true, remoteChanged: false };
+    return { value: local, localChanged: false, remoteChanged: lt > rt };
+  }
+
   /* --- one round ---------------------------------------------------------- */
 
   var running = null, again = false;
@@ -212,15 +219,20 @@
         if (m.localChanged) Store.replaceAll(order);
         Store.writeDeleted(m.deleted);
 
-        if (!m.remoteChanged && gist) return { pulled: m.localChanged, pushed: false };
-        var doc = { trips: m.trips, deleted: m.deleted, at: new Date().toISOString() };
+        /* The passport travels as one piece, newest wins, like a trip. */
+        var pp = mergePassport(global.Passport ? Passport.raw() : null, remote && remote.passport);
+        if (pp.localChanged) Passport.replace(pp.value);
+
+        var pulled = m.localChanged || pp.localChanged;
+        if (!m.remoteChanged && !pp.remoteChanged && gist) return { pulled: pulled, pushed: false };
+        var doc = { trips: m.trips, deleted: m.deleted, passport: pp.value, at: new Date().toISOString() };
         return seal(doc).then(function (content) {
           var files = {}; files[FILE] = { content: content };
           return gist
             ? gh('PATCH', '/gists/' + gist.id, { files: files })
             : gh('POST', '/gists', { description: 'Travel Marvel 同步（請勿手動修改）', public: false, files: files })
                 .then(function (g) { pref(K.gist, g.id); return g; });
-        }).then(function () { return { pulled: m.localChanged, pushed: true }; });
+        }).then(function () { return { pulled: pulled, pushed: true }; });
       });
     }).then(function (result) {
       pref(K.at, new Date().toISOString());
@@ -296,7 +308,7 @@
     onStatus: function (fn) { listeners.push(fn); },
     gistUrl: function () { var id = pref(K.gist); return id ? 'https://gist.github.com/' + id : ''; },
     encrypted: function () { return !!pref(K.pass); },
-    merge: merge,
+    merge: merge, mergePassport: mergePassport,
     onPulled: null
   };
 })(window);
