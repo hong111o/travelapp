@@ -30,9 +30,61 @@
     }
   }
 
-  function writeRaw(list) {
+  var DELETED = 'tripbook.sync.deleted';
+
+  function readDeleted() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DELETED) || '{}');
+      return d && typeof d === 'object' ? d : {};
+    } catch (e) { return {}; }
+  }
+
+  function writeDeleted(map) {
+    try { localStorage.setItem(DELETED, JSON.stringify(map)); } catch (e) { /* best effort */ }
+  }
+
+  function withoutStamp(t) {
+    var c = {};
+    Object.keys(t || {}).forEach(function (k) { if (k !== 'touchedAt') c[k] = t[k]; });
+    return JSON.stringify(c);
+  }
+
+  /* Sync merges trip by trip, newest change wins, so every write stamps
+     the trips it actually changed with touchedAt — a tick as much as an
+     edit — and remembers trips that disappeared, so a delete on one
+     device is not undone by the copy still sitting on another. Writes
+     made by sync itself pass {fromSync:true}: they carry the other
+     device's stamps and must not look like fresh local changes. */
+  function stamp(list, prevRaw, fromSync) {
+    if (fromSync) return;
+    var before = {};
+    try {
+      (JSON.parse(prevRaw || '[]') || []).forEach(function (t) {
+        if (t && t.id) before[t.id] = withoutStamp(t);
+      });
+    } catch (e) { /* unreadable previous value: treat everything as changed */ }
+    var now = new Date().toISOString();
+    var present = {};
+    list.forEach(function (t) {
+      if (!t || !t.id) return;
+      present[t.id] = true;
+      if (before[t.id] !== withoutStamp(t)) t.touchedAt = now;
+    });
+    var gone = Object.keys(before).filter(function (id) { return !present[id]; });
+    if (gone.length) {
+      var d = readDeleted();
+      gone.forEach(function (id) { d[id] = now; });
+      writeDeleted(d);
+    }
+  }
+
+  function writeRaw(list, opts) {
+    var fromSync = !!(opts && opts.fromSync);
     var next;
     try {
+      var peek = null;
+      try { peek = localStorage.getItem(KEY); } catch (e) { /* unreadable */ }
+      stamp(list, peek, fromSync);
       next = JSON.stringify(list);
     } catch (e) {
       console.warn('[store] could not serialise trips', e);
@@ -59,6 +111,9 @@
 
     try {
       localStorage.setItem(KEY, next);
+      if (!fromSync && prev !== next && typeof global.Store.onWrite === 'function') {
+        try { global.Store.onWrite(); } catch (e2) { /* a listener must never break a save */ }
+      }
       return true;
     } catch (e) {
       /* Quota is the realistic failure here — a long trip with many
@@ -67,6 +122,23 @@
       U.toast('儲存唔到（瀏覽器空間滿咗或者無痕模式）', true);
       return false;
     }
+  }
+
+  /* --- for sync ------------------------------------------------- */
+
+  /* The raw list, stamps and all, exactly as stored. */
+  function rawAll() { return readRaw(); }
+
+  /* Replace every trip with the merged set. Marked as sync's own write:
+     no new stamps, no tombstones from trips the merge itself removed
+     (those were deleted elsewhere and are already recorded). */
+  function replaceAll(list) {
+    return writeRaw(list.map(function (t) {
+      var n = Schema.normalize(t);
+      n.touchedAt = t.touchedAt || n.touchedAt;
+      n.updatedAt = t.updatedAt || n.updatedAt;
+      return n;
+    }), { fromSync: true });
   }
 
   /* --- one step back -------------------------------------------- */
@@ -379,7 +451,15 @@
       if (localStorage.getItem(SEEDED)) return;
     } catch (e) { return; }
     if (readRaw().length === 0) {
-      builtin.forEach(function (t) { save(t); });
+      /* Every new device gets the demo, so it must never outrank a
+         decision made elsewhere: stamped as old as can be, a demo you
+         deleted on your phone stays deleted when your laptop syncs,
+         instead of coming back from the laptop's fresh copy. */
+      writeRaw(builtin.map(function (t) {
+        var n = Schema.normalize(t);
+        n.touchedAt = '1970-01-01T00:00:00.000Z';
+        return n;
+      }), { fromSync: true });
     }
     try { localStorage.setItem(SEEDED, '1'); } catch (e) { /* ignore */ }
   }
@@ -473,6 +553,8 @@
     addBooking: addBooking, removeBooking: removeBooking,
     addPacking: addPacking, removePacking: removePacking, setPacked: setPacked,
     setTodoDone: setTodoDone,
+    rawAll: rawAll, replaceAll: replaceAll, readDeleted: readDeleted, writeDeleted: writeDeleted,
+    onWrite: null,
     clearProgress: clearProgress, migrateUids: migrateUids,
     backupInfo: backupInfo, restoreBackup: restoreBackup,
     exportTrip: exportTrip, importText: importText, extractJSON: extractJSON

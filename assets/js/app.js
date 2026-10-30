@@ -1605,6 +1605,126 @@
     if (sheet) sheet.remove();
   }
 
+  /* --- sync ---------------------------------------------------------- */
+
+  var TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Travel%20Marvel';
+
+  function syncStatusText(st) {
+    if (!Sync.enabled()) return '未開';
+    var when = st.at ? '，上次 ' + U.shortDateTime(st.at) : '';
+    if (st.state === 'syncing') return '同步緊…';
+    if (st.state === 'error') return '出錯：' + st.message;
+    if (st.state === 'offline') return st.message;
+    return '已同步' + when;
+  }
+
+  function paintSyncDot(st) {
+    var dot = U.el('sync-dot');
+    if (!dot) return;
+    dot.hidden = !Sync.enabled();
+    dot.classList.toggle('err', st.state === 'error');
+    var tab = document.querySelector('.libbar [data-lib="sync"]');
+    if (tab) tab.setAttribute('aria-label', '同步：' + syncStatusText(st));
+  }
+
+  function openSyncSheet() {
+    var on = Sync.enabled(), st = Sync.status();
+    var wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="sheet" id="sync-sheet" aria-labelledby="sync-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="sync-sheet-h">☁️ 同步</h2>' +
+        '<button class="iconbtn" data-sy="close" aria-label="閂">✕</button></div>' +
+      (on
+        ? '<p class="syncstate" id="sync-state">' + U.esc(syncStatusText(st)) + '</p>' +
+          '<p class="tinynote">行程存喺你 GitHub 嘅一個私人 Gist' +
+            (Sync.encrypted() ? '，加咗密，GitHub 睇唔到內容。' : '，<b>冇加密</b>。') +
+            (Sync.gistUrl() ? ' <a href="' + U.esc(Sync.gistUrl()) + '" target="_blank" rel="noopener">睇吓個 Gist ↗</a>' : '') + '</p>' +
+          '<div class="cvopts">' +
+            '<button class="btn btn-primary" data-sy="now">🔄 即刻同步</button>' +
+            '<button class="btn btn-danger" data-sy="off">停止喺呢部機同步</button>' +
+          '</div>' +
+          '<p class="tinynote">相片同封面相唔會同步，佢哋太大，亦都係最私人嘅嘢。</p>'
+        : '<p class="tinynote" style="margin-top:0">行程會存去你自己 GitHub 帳戶入面一個私人 Gist，' +
+            '每部機貼一次 token 就會自動同步。冇伺服器，冇新帳戶。</p>' +
+          '<ol class="syncsteps">' +
+            '<li><a href="' + TOKEN_URL + '" target="_blank" rel="noopener">喺 GitHub 整一個 token ↗</a>' +
+              '：只剔 <b>gist</b>，揀個到期日，撳 Generate，copy 個 <code>ghp_…</code>。</li>' +
+            '<li>貼喺下面。第二部機用<b>同一個 token</b>（或者另外整一個都得）。</li>' +
+            '<li>設個加密密碼。每部機都要填同一個；唔記得就讀唔返雲端嗰份。</li>' +
+          '</ol>' +
+          '<div class="f"><label for="sy-token">GitHub token</label>' +
+            '<input id="sy-token" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_… 或者 github_pat_…"></div>' +
+          '<div class="f"><label for="sy-pass">加密密碼 <span class="opt">（強烈建議）</span></label>' +
+            '<input id="sy-pass" type="password" autocomplete="new-password"></div>' +
+          '<p class="tinynote">GitHub 嘅「秘密」Gist 只係唔公開列出，有條連結嘅人都睇到。' +
+            '設咗密碼，上載之前會喺你部機加密，GitHub 淨係見到亂碼。token 只會存喺呢部機。</p>' +
+          '<div class="jsonerr" id="sy-err" hidden></div>' +
+          '<div class="sheet-foot"><button class="btn" data-sy="close">取消</button>' +
+            '<button class="btn btn-primary" data-sy="connect">開始同步</button></div>') +
+      '</div></div>';
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.sync = U.trapFocus(sheet, closeSyncSheet);
+    setTimeout(function () {
+      var f = U.el('sy-token') || sheet.querySelector('[data-sy="now"]');
+      if (f) f.focus();
+    }, 60);
+
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-sy]') : null;
+      if (!b) { if (e.target === sheet) closeSyncSheet(); return; }
+      var what = b.getAttribute('data-sy');
+      if (what === 'close') { closeSyncSheet(); return; }
+      if (what === 'now') {
+        b.disabled = true;
+        Sync.now().then(function () { U.toast('同步咗'); }, function (err) { U.toast(err.message, true); })
+          .then(function () { closeSyncSheet(); });
+        return;
+      }
+      if (what === 'off') {
+        if (!confirm('喺呢部機停止同步？\n\n呢部機嘅行程會留低，GitHub 上面嗰份都唔會刪。')) return;
+        Sync.disconnect();
+        closeSyncSheet();
+        U.toast('已經停咗同步');
+        return;
+      }
+      if (what === 'connect') {
+        var err = U.el('sy-err');
+        err.hidden = true;
+        b.disabled = true;
+        b.textContent = '連接緊…';
+        Sync.connect(U.el('sy-token').value, U.el('sy-pass').value).then(function () {
+          closeSyncSheet();
+          U.toast('同步咗 ✓ 第二部機貼返同一個 token 同密碼就得');
+        }, function (e2) {
+          err.textContent = e2.message;
+          err.hidden = false;
+          b.disabled = false;
+          b.textContent = '開始同步';
+        });
+      }
+    });
+  }
+
+  function closeSyncSheet() {
+    if (releaseTrap.sync) { releaseTrap.sync(); releaseTrap.sync = null; }
+    var sheet = U.el('sync-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  /* Something arrived from another device: show it. The trip on screen
+     is rebuilt only if it actually changed, so a sync never yanks the
+     page out from under you for nothing. */
+  function onPulled() {
+    renderLibrary();
+    if (!current) return;
+    var fresh = Store.get(current.id);
+    if (!fresh) { if (location.hash.indexOf('#/trip/') === 0) go('#/'); return; }
+    if (JSON.stringify(fresh) === JSON.stringify(current)) return;
+    var sub = lastSub || 'home';
+    current = null;
+    openTrip(fresh.id, sub);
+  }
+
   /* --- arranging the home cards --------------------------------------- */
 
   /* Repaint the home screen alone, in place. Arrange mode collapses every
@@ -1795,6 +1915,15 @@
     wireTheme();
     wireRestore();
     wireSwipe();
+
+    Sync.onStatus(function (st) {
+      paintSyncDot(st);
+      var line = U.el('sync-state');
+      if (line) line.textContent = syncStatusText(st);
+    });
+    Sync.onPulled = onPulled;
+    Sync.init();
+    paintSyncDot(Sync.status());
 
     /* Enter in the packing field adds the row, so a list can be typed
        straight through without reaching for the button each time. */

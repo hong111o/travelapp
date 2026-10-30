@@ -327,7 +327,12 @@
         };
       }).filter(function (e) { return e.amount != null; }),
       notes: str(t.notes),
-      updatedAt: str(t.updatedAt) || new Date().toISOString()
+      updatedAt: str(t.updatedAt) || new Date().toISOString(),
+      /* When anything about the trip last changed on any device — the
+         plan or a record of the day. updatedAt only moves for the plan
+         (it drives re-rendering); sync needs to know about a tick too.
+         Stamped by Store on write, never by hand. */
+      touchedAt: str(t.touchedAt)
     };
 
     /* Day ids must be unique — they're used as view keys and map container ids. */

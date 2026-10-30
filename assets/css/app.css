@@ -1080,3 +1080,14 @@ body.on-library #view-library .wrap{padding-bottom:calc(86px + env(safe-area-ins
 
 @media (min-width:700px){ .hc-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (min-width:1280px){ .hc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+
+/* ---------- sync ---------- */
+.syncstate{font-weight:700;color:var(--sea);margin:2px 0 6px}
+.syncsteps{margin:4px 0 12px 1.2em;font-size:.88rem;color:var(--ink)}
+.syncsteps li{margin:5px 0}
+.syncsteps a{color:var(--teal);font-weight:700}
+/* The link and reply boxes share the import box's style but not its
+   34vh height: a few links need a few lines. */
+.hc-add .jsonarea{min-height:0;height:auto}
+#hc-links{min-height:96px}
+#hc-reply{min-height:140px}
