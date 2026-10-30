@@ -56,12 +56,15 @@ async function device(browser, trips) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   page.on('dialog', d => d.accept());
+  /* What GitHub (the fake, or anything else) answered, for failure messages. */
+  const seen = [];
+  page.on('response', r => { if (/github/.test(r.url())) seen.push(r.status() + ' ' + r.request().method() + ' ' + new URL(r.url()).pathname); });
   await page.goto(BASE + '/index.html');
   await page.evaluate(ts => { localStorage.clear(); ts.forEach(t => window.Store.save(t)); }, trips || []);
   await page.goto('about:blank');
   await page.goto(BASE + '/index.html');
   await page.waitForSelector('#lib-list', { state: 'attached' });
-  return { ctx, page, errors };
+  return { ctx, page, errors, seen };
 }
 
 const titles = page => page.evaluate(() => window.Store.all().map(t => t.title).sort());
@@ -114,7 +117,8 @@ async function connect(page, token, pass) {
     await connect(B.page, TOKEN, 'wrong');
     await B.page.waitForSelector('#sy-err:not([hidden])');
     const msg = await B.page.textContent('#sy-err');
-    if (!/密碼/.test(msg)) throw new Error('reads ' + msg);
+    if (!/密碼/.test(msg)) throw new Error('reads ' + msg + ' — GitHub answered: ' + B.seen.join(', ') +
+      ' — fake gists: ' + Object.keys(gists).join());
     if (await B.page.evaluate(() => window.Sync.enabled())) throw new Error('left half set up');
     await B.page.click('#sync-sheet [data-sy="close"]');
   });
