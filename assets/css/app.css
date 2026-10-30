@@ -1215,14 +1215,29 @@ body.on-library #view-passport .wrap{padding-bottom:calc(86px + env(safe-area-in
    however long a city's name is. Names stay on one line. */
 .pt-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .pt{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-/* Title on one line, dates under it: side by side, a long date range
-   squeezed the title to nothing on a phone. */
-.pt-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:2px 8px;padding:11px 14px 9px;
-  background:color-mix(in srgb, var(--tint) 60%, transparent);border-bottom:1px solid var(--sand-2)}
-.pt-flags{flex-shrink:0;font-size:1rem;letter-spacing:1px}
-.pt-title{flex:1;min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:1rem;color:var(--sea);
+/* Collapsed, each trip is its header alone; the whole header is the tap
+   target. Title on one line, dates under it. */
+.pt-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:3px 8px;padding:12px 14px 11px;
+  background:color-mix(in srgb, var(--tint) 60%, transparent);cursor:pointer;list-style:none;min-height:56px}
+.pt-head::-webkit-details-marker{display:none}
+.pt[open] > .pt-head{border-bottom:1px solid var(--sand-2)}
+.pt-head:hover{background:color-mix(in srgb, var(--tint) 90%, transparent)}
+.pt-flags{flex-shrink:0;font-size:1rem;letter-spacing:1px;white-space:nowrap}
+.pt-title{min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:1rem;color:var(--sea);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-more{display:inline-block;margin-left:4px;padding:1px 7px;border-radius:999px;vertical-align:2px;
+  font-family:inherit;font-size:.7rem;font-weight:700;letter-spacing:.02em;
+  color:var(--sea);background:var(--surface);border:1px solid var(--line)}
+.pt-chev{width:8px;height:8px;margin:0 2px 3px 0;border-right:2px solid var(--ink-soft);border-bottom:2px solid var(--ink-soft);
+  transform:rotate(45deg);transition:transform .2s}
+.pt[open] .pt-chev{transform:rotate(-135deg);margin-bottom:-3px}
 .pt-when{grid-column:1 / -1;font-size:.74rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+/* Opened, a long trip spells out every stop, wrapping as it needs to. */
+.pt-stops{margin:0;padding:10px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;
+  font-size:.8rem;color:var(--ink);border-bottom:1px solid var(--sand-2)}
+.pt-stops span{white-space:nowrap}
+.pt-stops i{font-style:normal;color:var(--amber);font-weight:800}
+@media (prefers-reduced-motion: reduce){ .pt-chev{transition:none} }
 .pt .pj-list{border:none;border-radius:0;background:none}
 
 /* The date column is a fixed width too: sized to its own text, it moved

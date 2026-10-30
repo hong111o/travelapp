@@ -32,6 +32,13 @@ const pp = '#view-passport';
     await page.waitForSelector(`${pp} .pp-book`);
   };
   const count = () => page.evaluate(() => window.Passport.all().length);
+  /* trips start collapsed: open the one holding a journey before tapping it */
+  const tapJourney = async key => {
+    const row = `${pp} [data-act="pj-edit"][data-key="${key}"]`;
+    await page.locator(`${pp} details.pt:has(${row.slice(pp.length + 1)}) > summary`).click();
+    await page.click(row);
+  };
+  const openAll = () => page.evaluate(() => document.querySelectorAll('#view-passport details.pt').forEach(d => { d.open = true; }));
 
   await t.step('the passport opens from the bar, with its map', async () => {
     await page.click('.libbar [data-lib="passport"]');
@@ -120,7 +127,7 @@ const pp = '#view-passport';
   await t.step('editing a trip journey makes it your own, replacing the worked-out one', async () => {
     const before = await count();
     const key = await page.evaluate(() => window.Passport.all().find(j => j.tripId === 'bdx').key);
-    await page.click(`${pp} [data-act="pj-edit"][data-key="${key}"]`);
+    await tapJourney(key);
     await page.waitForSelector('#pj-sheet');
     await page.click('#pj-sheet [data-mode="train"]');
     await page.click('#pj-sheet [data-pj="save"]');
@@ -137,7 +144,7 @@ const pp = '#view-passport';
   await t.step('removing a trip journey hides it without touching the trip', async () => {
     const key = await page.evaluate(() => window.Passport.all().find(j => j.auto && j.tripId === 'mal').key);
     page.once('dialog', d => d.accept());
-    await page.click(`${pp} [data-act="pj-edit"][data-key="${key}"]`);
+    await tapJourney(key);
     await page.waitForSelector('#pj-sheet');
     await page.click('#pj-sheet [data-pj="delete"]');
     await page.waitForSelector('#pj-sheet', { state: 'detached' });
@@ -232,9 +239,9 @@ const pp = '#view-passport';
   });
 
   await t.step('towns without an airport are found, in English or Chinese', async () => {
-    const r = await page.evaluate(() => ['Kyoto', '京都', 'Nara', 'Bruges', '布魯日', 'Seville', 'Sintra', 'Malacca']
+    const r = await page.evaluate(() => ['Kyoto', '京都', 'Nara', 'Bruges', '布魯日', 'Seville', 'Sintra', 'Malacca', 'Porto']
       .map(q => { const h = window.Passport.search(q)[0]; return h ? h.place.label + '/' + h.place.cc : q + '?'; }).join(' '));
-    const want = 'Kyoto/JP Kyoto/JP Nara/JP Bruges/BE Bruges/BE Seville/ES Sintra/PT Malacca/MY';
+    const want = 'Kyoto/JP Kyoto/JP Nara/JP Bruges/BE Bruges/BE Seville/ES Sintra/PT Malacca/MY Porto/PT';
     if (r !== want) throw new Error(r);
   });
 
@@ -265,12 +272,14 @@ const pp = '#view-passport';
   });
 
   await t.step('the arrows line up down the list', async () => {
+    await openAll();
     const xs = await page.evaluate(() => [...document.querySelectorAll('#view-passport .pj-arrow')]
       .map(a => Math.round(a.getBoundingClientRect().left)));
     if (new Set(xs).size !== 1) throw new Error('arrows at ' + [...new Set(xs)].join(', '));
   });
 
   await t.step('the transport icon stays clear of the place name', async () => {
+    await openAll();
     const gaps = await page.evaluate(() => [...document.querySelectorAll('#view-passport .pj')].map(r => {
       const icon = r.querySelector('.pj-mode').getBoundingClientRect();
       const name = r.querySelector('.pj-place b').getBoundingClientRect();
@@ -278,6 +287,36 @@ const pp = '#view-passport';
       return Math.round(name.left - Math.max(icon.right, range.getBoundingClientRect().right));
     }));
     if (!gaps.length || Math.min(...gaps) < 6) throw new Error('gaps ' + gaps.join(','));
+  });
+
+  await t.step('trips start collapsed and open on a tap, staying open after a repaint', async () => {
+    await open();
+    const shut = await page.evaluate(() => [...document.querySelectorAll('#view-passport details.pt')].every(d => !d.open));
+    if (!shut) throw new Error('a trip started open');
+    const head = page.locator(`${pp} details.pt > summary`).first();
+    if (await page.locator(`${pp} .pj`).first().isVisible()) throw new Error('legs visible while collapsed');
+    await head.click();
+    if (!await page.locator(`${pp} details.pt[open] .pj`).first().isVisible()) throw new Error('did not open');
+    await page.click(`${pp} [data-act="pp-year"][data-year=""]`);
+    if (!await page.locator(`${pp} details.pt[open]`).count()) throw new Error('closed again on repaint');
+  });
+
+  await t.step('a trip of many places names two and counts the rest, then lists every stop', async () => {
+    await page.evaluate(() => {
+      const P = window.Passport, pl = q => P.search(q)[0].place;
+      [['MAN', 'ZRH'], ['ZRH', 'BCN'], ['Barcelona', 'Madrid'], ['MAD', 'LIS'], ['Lisbon', 'Porto'], ['OPO', 'CDG'], ['CDG', 'MAN']]
+        .forEach((l, i) => P.saveJourney({ from: pl(l[0]), to: pl(l[1]), date: '2022-07-0' + (i + 1), mode: 'flight' }));
+    });
+    await open();
+    const trip = page.locator(`${pp} details.pt:has(.pt-more)`).first();
+    const title = await trip.locator('.pt-title').textContent();
+    if (!/^Zürich · Barcelona \+4$/.test(title.trim())) throw new Error('title ' + title);
+    await trip.locator('summary').click();
+    const stops = (await trip.locator('.pt-stops span').allTextContents()).join(' ');
+    if (stops !== 'Manchester Zürich Barcelona Madrid Lisbon Porto Paris Manchester') throw new Error('stops ' + stops);
+    const fits = await page.evaluate(() => { const h = document.querySelector('#view-passport details.pt:has(.pt-more) .pt-title');
+      return h.scrollWidth <= h.clientWidth; });
+    if (!fits) throw new Error('title still cut off');
   });
 
   await t.step('no airline count; legs counted instead', async () => {

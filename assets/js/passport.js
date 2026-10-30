@@ -234,6 +234,10 @@
           add(towns[e], 'town', said.charAt(0).toUpperCase() + said.slice(1)); break; }
       }
     }
+    /* "Porto" is Porto before Porto Alegre, however much bigger that is. */
+    for (var x = 0; x < towns.length && out.length < Math.min(limit, 5); x++) {
+      if (towns[x].key === term) add(towns[x], 'town');
+    }
     for (var t = 0; t < towns.length && out.length < Math.min(limit, 5); t++) {
       if (towns[t].key.indexOf(term) === 0) add(towns[t], 'town');
     }
@@ -664,18 +668,45 @@
       '</button></li>';
   }
 
+  /* Trips open by tap; which ones are open is kept for the session, so
+     a repaint after an edit leaves them as they were. */
+  var openTrips = {};
+  function tripKey(t) {
+    var j = t.legs[0];
+    return t.start + '|' + (j.auto ? j.key : j.uid);
+  }
+  function setTripOpen(key, on) {
+    if (on) openTrips[key] = true; else delete openTrips[key];
+  }
+
+  /* Collapsed, a trip is one line: flags, where, when. A long trip names
+     its first two places and counts the rest in a pill, rather than
+     trailing off in "…"; opened, it lists every stop in order. */
   function tripHTML(t) {
     var names = t.places.map(cityName);
-    var title = names.length ? names.slice(0, 3).join(' · ') + (names.length > 3 ? ' …' : '') : cityName(t.legs[0].to);
+    if (!names.length) names = [cityName(t.legs[0].to)];
+    var shown = names.slice(0, names.length > 3 ? 2 : 3);
+    var more = names.length - shown.length;
     var flags = [];
     t.places.forEach(function (p) { var f = flag(p.cc); if (f && flags.indexOf(f) < 0) flags.push(f); });
     var days = daysBetween(t.start, t.end) + 1;
     var when = t.start === t.end ? t.start : t.start + ' – ' + (t.end.slice(0, 4) === t.start.slice(0, 4) ? t.end.slice(5) : t.end);
-    return '<li class="pt">' +
-      '<div class="pt-head"><span class="pt-flags" aria-hidden="true">' + flags.join('') + '</span>' +
-        '<span class="pt-title">' + esc(title) + '</span>' +
-        '<span class="pt-when">' + esc(when) + (days > 1 ? ' · ' + days + ' 日' : '') + ' · ' + t.legs.length + ' 段</span></div>' +
-      '<ul class="pj-list">' + t.legs.map(journeyRow).join('') + '</ul></li>';
+    var dist = t.legs.reduce(function (a, j) { return a + km(j); }, 0);
+    var stops = [cityName(t.origin)].concat(names);
+    if (!t.open) stops.push(cityName(t.origin));
+    var key = tripKey(t);
+    return '<li><details class="pt" data-trip="' + esc(key) + '"' + (openTrips[key] ? ' open' : '') + '>' +
+      '<summary class="pt-head">' +
+        '<span class="pt-flags" aria-hidden="true">' + flags.slice(0, 4).join('') + '</span>' +
+        '<span class="pt-title">' + esc(shown.join(' · ')) +
+          (more ? ' <span class="pt-more" aria-label="仲有 ' + more + ' 個地方">+' + more + '</span>' : '') + '</span>' +
+        '<span class="pt-chev" aria-hidden="true"></span>' +
+        '<span class="pt-when">' + esc(when) + (days > 1 ? ' · ' + days + ' 日' : '') + ' · ' + t.legs.length + ' 段 · ' +
+          Math.round(dist).toLocaleString('en') + ' km</span>' +
+      '</summary>' +
+      (stops.length > 3 ? '<p class="pt-stops">' + stops.map(function (n) { return '<span>' + esc(n) + '</span>'; })
+        .join('<i aria-hidden="true">›</i>') + '</p>' : '') +
+      '<ul class="pj-list">' + t.legs.map(journeyRow).join('') + '</ul></details></li>';
   }
 
   /* The whole page. `year` is '' for all time. */
@@ -923,7 +954,7 @@
 
   global.Passport = {
     load: load, search: search, all: all, stats: stats, years: years, km: km, minutes: minutes,
-    fromTrip: fromTrip, flightDate: flightDate, viewHTML: viewHTML, groupTrips: groupTrips, cleanCity: cleanCity, cityName: cityName, searchOnline: searchOnline,
+    fromTrip: fromTrip, flightDate: flightDate, viewHTML: viewHTML, groupTrips: groupTrips, setTripOpen: setTripOpen, cleanCity: cleanCity, cityName: cityName, searchOnline: searchOnline,
     journeySheetHTML: journeySheetHTML, holderSheetHTML: holderSheetHTML,
     wirePlaceField: wirePlaceField, placeOf: placeOf,
     saveJourney: saveJourney, remove: remove, setHolder: setHolder, setPhoto: setPhoto, makePhoto: makePhoto,

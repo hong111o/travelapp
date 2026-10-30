@@ -1905,6 +1905,11 @@
       else if (act === 'pp-holder') openHolderSheet();
       else if (act === 'pp-photo') pickPassportPhoto();
     });
+    /* toggle does not bubble, so listen on the way down */
+    U.el('view-passport').addEventListener('toggle', function (e) {
+      var d = e.target;
+      if (d.matches && d.matches('details.pt')) Passport.setTripOpen(d.getAttribute('data-trip'), d.open);
+    }, true);
   }
 
   /* --- arranging the home cards --------------------------------------- */
