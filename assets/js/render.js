@@ -335,26 +335,44 @@
       }).join('') + '</ul></div>';
   }
 
+  /* One home screen, two arrangements. On a phone it is a single column
+     in this order. On a desktop the plan (today, the days, progress)
+     takes the wide column and the reference cards (weather, money,
+     flights, hotels, links) the narrow one.
+
+     The markup is grouped by column and every piece carries its phone
+     position as a flex `order`. Under the desktop breakpoint the column
+     wrappers are display:contents, so the pieces fall back into one flex
+     column in exactly the sequence below — neither layout has to be a
+     compromise of the other. */
+  function slot(order, html) {
+    return html ? '<div class="hs" style="order:' + order + '">' + html + '</div>' : '';
+  }
+
   function homeHTML(trip) {
     return '<div class="subview" data-sub="home">' +
       heroHTML(trip) +
-      '<div class="wrap">' +
-        todayHTML(trip) +
-        weatherHTML(trip) +
-        fxHTML(trip) +
-        countdownHTML(trip) +
-        flightsHTML(trip) +
-        hotelsHTML(trip) +
-        infoCardsHTML(trip) +
-        dayCardsHTML(trip) +
-        statusCardsHTML(trip) +
-        linksHTML(trip) +
-        todosHTML(trip) +
-        shareHTML(trip) +
-        offlineHTML(trip) +
-        (trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
-          rich(trip.notes) + '</p></div>' : '') +
-        '<footer>' + esc(trip.title || '行程') + '　<span class="heart">✦</span></footer>' +
+      '<div class="wrap homegrid">' +
+        '<div class="hcol hmain">' +
+          slot(1, todayHTML(trip)) +
+          slot(8, dayCardsHTML(trip)) +
+          slot(9, statusCardsHTML(trip)) +
+          slot(11, todosHTML(trip)) +
+        '</div>' +
+        '<div class="hcol hside">' +
+          slot(2, weatherHTML(trip)) +
+          slot(3, fxHTML(trip)) +
+          slot(4, countdownHTML(trip)) +
+          slot(5, flightsHTML(trip)) +
+          slot(6, hotelsHTML(trip)) +
+          slot(7, infoCardsHTML(trip)) +
+          slot(10, linksHTML(trip)) +
+          slot(12, shareHTML(trip)) +
+          slot(13, offlineHTML(trip)) +
+          slot(14, trip.notes ? '<div class="card"><h2>📝 備註</h2><p style="font-size:.88rem;color:var(--ink-soft)">' +
+            rich(trip.notes) + '</p></div>' : '') +
+        '</div>' +
+        '<footer class="hfoot">' + esc(trip.title || '行程') + '　<span class="heart">✦</span></footer>' +
       '</div></div>';
   }
 
@@ -493,13 +511,16 @@
         '</div>';
     }
 
-    return '<div class="subview" data-sub="' + esc(day.id) + '"><div class="wrap">' +
+    return '<div class="subview dayview" data-sub="' + esc(day.id) + '"><div class="wrap">' +
       '<div class="backbar"><button class="backbtn" data-act="home"><span class="ar">‹</span> 首頁</button>' +
         '<span class="sp"></span>' +
         '<span class="bt">Day ' + (index + 1) + ' / ' + trip.days.length + '</span></div>' +
       '<div class="day-top"><div class="dn">' + esc(dn) + '</div>' +
         '<h3>' + esc(day.title || ('Day ' + (index + 1))) + '</h3>' +
         (day.theme ? '<div class="theme">' + esc(day.theme) + '</div>' : '') + '</div>' +
+      /* Stops and map share a body: one column on a phone, side by side
+         on a desktop with the map holding still while the list scrolls. */
+      '<div class="daybody' + (map ? ' hasmap' : '') + '">' +
       '<div class="stops">' + day.stops.map(function (st, i) {
           var html = stopHTML(st);
           if (!html) return '';
@@ -518,6 +539,7 @@
         '</div>') +
       '</div>' +
       map +
+      '</div>' +
       dayStepHTML(trip, index) +
       '</div></div>';
   }
@@ -1222,7 +1244,16 @@
     tabs.push({ tab: 'money', icon: '💰', label: '使費' });
     tabs.push({ tab: 'check', icon: '✓', label: '清單' });
     if (searchIndex(t).length > 5) tabs.push({ tab: 'search', icon: '🔍', label: '搵嘢' });
-    return '<nav class="tabbar" aria-label="行程導覽">' +
+    /* On a desktop the bar becomes a sidebar, which has room for what a
+       phone's bar does not: whose app this is, which trip you are in,
+       and a way back to the shelf. Hidden below the breakpoint. */
+    var brand = '<div class="sb-brand">' +
+        '<img src="assets/icon-192.png" alt="" width="40" height="40">' +
+        '<div><b>Travel Marvel</b><span>' + esc(U.plain(t.title || '行程')) + '</span></div>' +
+      '</div>';
+    var shelf = '<button class="tab tab-lib" data-act="library">' +
+        '<span class="ti" aria-hidden="true">‹</span><span class="tl">所有行程</span></button>';
+    return '<nav class="tabbar" aria-label="行程導覽">' + brand + shelf +
       tabs.map(function (x) {
         return '<button class="tab" data-tab="' + x.tab + '" data-act="' + x.tab + '">' +
           '<span class="ti" aria-hidden="true">' + x.icon + '</span>' +

@@ -249,6 +249,25 @@
     });
   }
 
+  /* Crossing the desktop breakpoint changes a map's size — it goes from
+     a 320px strip under the list to a full-height panel beside it — and
+     Leaflet only measures its container when told to. Re-fit whatever
+     is on screen once the window settles. */
+  var refitTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(function () {
+      Object.keys(maps).forEach(function (id) {
+        var m = maps[id];
+        var el = U.el('map-' + id);
+        if (!m || !el || el.offsetParent === null) return;
+        m.map.invalidateSize();
+        if (m.bounds.length === 1) m.map.setView(m.bounds[0], 15);
+        else m.map.fitBounds(m.bounds, { padding: [34, 34] });
+      });
+    }, 180);
+  });
+
   global.Widgets = {
     stopAll: stopAll, resetMaps: resetMaps,
     loadWeather: loadWeather, loadFX: loadFX,

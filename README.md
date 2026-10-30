@@ -55,6 +55,8 @@
 | 🔍 搵嘢 | 全程搜尋（行程夠大先出現） |
 
 日頁底下有「前一日 / 後一日」，電話上面左右掃都得。
+
+用電腦（闊過 1024px）開嘅話，條 tab bar 會變做左邊嘅側欄，多埋「所有行程」返書架；首頁分兩欄（左邊行程、右邊天氣匯率航班酒店）；每日行程同地圖並排，碌落去地圖會跟住你。平板同窄視窗照用電話版面。
 行程進行緊嘅時候，一打開就直接入今日，唔使自己揀。
 
 ---
@@ -590,7 +592,7 @@ data/
 tests/
   run.js                    起個 server、逐個 suite 行、報結果
   *.test.js                 Playwright 行真 app（smoke / store / nav /
-                            spend / booking / a11y / theme）
+                            spend / booking / a11y / theme / desktop）
 tools/
   bundle-trips.js           打包 script
 ```
