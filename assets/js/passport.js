@@ -467,8 +467,27 @@
     return Object.keys(y).sort().reverse();
   }
 
+  /* Days away, counted as the trip headers count them (first to last
+     day, both included). Trips that overlap share their days rather
+     than counting them twice. */
+  function travelDays(trips) {
+    var spans = trips.map(function (t) {
+      var a = U.parseISODate(t.start), b = U.parseISODate(t.end);
+      return a && b ? [a.getTime(), b.getTime()] : null;
+    }).filter(Boolean).sort(function (x, y) { return x[0] - y[0]; });
+    var total = 0, cur = null;
+    spans.forEach(function (sp) {
+      if (cur && sp[0] <= cur[1] + 86400000 / 2) { cur[1] = Math.max(cur[1], sp[1]); return; }
+      if (cur) total += Math.round((cur[1] - cur[0]) / 86400000) + 1;
+      cur = sp.slice();
+    });
+    if (cur) total += Math.round((cur[1] - cur[0]) / 86400000) + 1;
+    return total;
+  }
+
   function stats(js) {
-    var s = { n: groupTrips(js).length, legs: js.length, km: 0, min: 0, countries: [], airports: {}, cities: {},
+    var trips = groupTrips(js);
+    var s = { n: trips.length, days: travelDays(trips), legs: js.length, km: 0, min: 0, countries: [], airports: {}, cities: {},
       modes: {}, first: '' };
     var cc = {};
     js.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); }).forEach(function (j) {
@@ -773,7 +792,7 @@
           '<div><dt>國家</dt><dd><b>' + s.countries.length + '</b></dd></div>' +
           '<div><dt>城市</dt><dd><b>' + s.cities + '</b></dd></div>' +
           '<div><dt>機場</dt><dd><b>' + s.airports + '</b></dd></div>' +
-          '<div><dt>航段</dt><dd><b>' + s.legs + '</b></dd></div>' +
+          '<div><dt>旅行日數</dt><dd><b>' + s.days.toLocaleString('en') + '</b><small>日</small></dd></div>' +
         '</div>' +
         (modes ? '<div class="pp-modes">' + modes + '</div>' : '') +
       '</div>' +

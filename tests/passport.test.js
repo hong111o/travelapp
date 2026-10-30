@@ -74,6 +74,7 @@ const pp = '#view-passport';
     const s = await page.evaluate(() => window.Passport.stats(window.Passport.all()));
     if (s.n !== 1) throw new Error('a return journey counted as ' + s.n + ' trips');
     if (s.legs !== 2) throw new Error(s.legs + ' legs');
+    if (s.days !== 17) throw new Error(s.days + ' travel days for 20 Dec – 5 Jan');
     if (s.km < 19000 || s.km > 19600) throw new Error(Math.round(s.km) + ' km for HKG–London and back');
     if (s.countries.join() !== 'HK,GB') throw new Error('countries ' + s.countries.join());
     if (s.min < 1400) throw new Error('only ' + s.min + ' minutes estimated');
@@ -227,6 +228,22 @@ const pp = '#view-passport';
     if (r !== '2:Málaga | 1:London | 2:Sapporo | 4:Singapore+Malacca') throw new Error(r);
   });
 
+  await t.step('travel days add up each trip, and overlapping trips share theirs', async () => {
+    const d = await page.evaluate(() => {
+      const P = window.Passport, pl = q => P.search(q)[0].place;
+      const leg = (a, b, date) => ({ from: pl(a), to: pl(b), date, mode: 'flight' });
+      return [
+        P.stats([leg('HKG', 'NRT', '2024-03-01'), leg('NRT', 'HKG', '2024-03-05')]).days,
+        P.stats([leg('HKG', 'NRT', '2024-03-01'), leg('NRT', 'HKG', '2024-03-05'),
+                 leg('HKG', 'TPE', '2024-06-10'), leg('TPE', 'HKG', '2024-06-10')]).days,
+        /* home on the 5th and off again the same day: 1–8 May is 8 days, not 5 + 4 */
+        P.stats([leg('HKG', 'NRT', '2024-05-01'), leg('NRT', 'HKG', '2024-05-05'),
+                 leg('HKG', 'TPE', '2024-05-05'), leg('TPE', 'HKG', '2024-05-08')]).days
+      ].join();
+    });
+    if (d !== '5,6,8') throw new Error(d);
+  });
+
   await t.step('an airport is named by the city it serves, so airport and city entries match', async () => {
     const r = await page.evaluate(() => {
       const P = window.Passport, city = q => P.cityName(P.search(q)[0].place);
@@ -319,10 +336,11 @@ const pp = '#view-passport';
     if (!fits) throw new Error('title still cut off');
   });
 
-  await t.step('no airline count; legs counted instead', async () => {
+  await t.step('no airline or leg count; days away instead', async () => {
     const labels = await page.locator(`${pp} .pp-stats dt`).allTextContents();
     if (labels.includes('航空公司')) throw new Error('airlines still shown');
-    if (!labels.includes('航段')) throw new Error('no leg count');
+    if (labels.includes('航段')) throw new Error('legs still shown');
+    if (!labels.includes('旅行日數')) throw new Error('no travel days');
   });
 
   await t.step('your own photo goes where the app icon was', async () => {
