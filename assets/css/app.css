@@ -1170,8 +1170,6 @@ body.on-library #view-passport .wrap{padding-bottom:calc(86px + env(safe-area-in
 .pp-yh{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;color:var(--sea);margin:24px 0 8px}
 .pp-yh small{font-family:inherit;font-size:.78rem;font-weight:400;color:var(--ink-soft);margin-left:8px}
 .pj-list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:16px}
-.pj{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--sand-2)}
-.pj:first-child{border-top:none}
 .pj-mode{font-size:1.15rem;width:1.6em;text-align:center;flex-shrink:0}
 .pj-route{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 .pj-place{min-width:0}
@@ -1210,3 +1208,56 @@ body.on-library #view-passport .wrap{padding-bottom:calc(86px + env(safe-area-in
   .pp-strip{padding:14px 30px 4px}
 }
 @media print{ .pp-tabs,.pp-actions,.pj .iconbtn{display:none !important} }
+
+/* ---------- passport, tidier ----------
+   Every leg is the same grid — transport, from, arrow, to, date — with
+   the two places in equal columns, so the arrows line up down the list
+   however long a city's name is. Names stay on one line. */
+.pt-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.pt{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+/* Title on one line, dates under it: side by side, a long date range
+   squeezed the title to nothing on a phone. */
+.pt-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;gap:2px 8px;padding:11px 14px 9px;
+  background:color-mix(in srgb, var(--tint) 60%, transparent);border-bottom:1px solid var(--sand-2)}
+.pt-flags{flex-shrink:0;font-size:1rem;letter-spacing:1px}
+.pt-title{flex:1;min-width:0;font-family:'Fraunces',serif;font-weight:600;font-size:1rem;color:var(--sea);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-when{grid-column:1 / -1;font-size:.74rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.pt .pj-list{border:none;border-radius:0;background:none}
+
+/* The date column is a fixed width too: sized to its own text, it moved
+   the arrows row by row. */
+.pj{display:grid;grid-template-columns:1.4em minmax(0,1fr) 1em minmax(0,1fr) 4.6em;
+  align-items:center;gap:7px;padding:10px 12px;width:100%;text-align:left;cursor:pointer;
+  font-family:inherit;color:inherit;background:none;border:none;border-top:1px solid var(--sand-2);min-height:56px}
+.pj-list > li:first-child .pj{border-top:none}
+.pj:active,.pj:hover{background:var(--sand-2)}
+.pj-route{display:contents}
+.pj-place{min-width:0}
+.pj-place b{display:block;font-size:.92rem;letter-spacing:0;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-place small{display:block;max-width:none;font-size:.72rem;color:var(--ink-soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-arrow{text-align:center}
+.pj-meta{min-width:0;overflow:hidden}
+.pj-meta small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pj-meta .pj-auto{color:var(--teal);font-weight:700}
+.pj-meta{text-align:right}
+
+/* the passport photo, where the app icon used to sit */
+.pp-photo{flex-shrink:0;width:66px;height:88px;padding:0;cursor:pointer;overflow:hidden;
+  border-radius:8px;border:2px solid var(--surface);background:var(--sand-2);
+  box-shadow:0 2px 10px var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-family:inherit;color:var(--ink-soft)}
+.pp-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.pp-photo.empty{border:1.5px dashed var(--teal-soft);background:color-mix(in srgb, var(--surface) 60%, transparent)}
+.pp-photo span{font-size:1.4rem}
+.pp-photo small{font-size:.68rem;font-weight:700}
+.ph-photo{display:flex;align-items:center;gap:10px}
+.ph-photo img{width:48px;height:64px;object-fit:cover;border-radius:6px}
+
+@media (min-width:1024px){
+  .pp-photo{width:84px;height:112px}
+}
+.pf-list li.pf-more{border-top:1px solid var(--sand-2);margin-top:2px}
+.pf-list li.pf-more b{color:var(--teal)}

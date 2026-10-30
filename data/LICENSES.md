@@ -50,3 +50,13 @@ OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ```
+
+## data/cities.js — GeoNames
+
+Towns and cities of 15,000+ people from [GeoNames](https://www.geonames.org/), licensed under
+[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/). Read from the
+`cities.pbf` file of [all-the-cities](https://github.com/zeke/all-the-cities) (MIT) by
+`tools/build-cities-data.js`; no code from that package is run.
+
+Places not in these lists can be looked up online from [OpenStreetMap](https://www.openstreetmap.org/copyright)
+via Nominatim, © OpenStreetMap contributors (ODbL).

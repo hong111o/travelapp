@@ -65,7 +65,8 @@ const pp = '#view-passport';
 
   await t.step('the numbers add up', async () => {
     const s = await page.evaluate(() => window.Passport.stats(window.Passport.all()));
-    if (s.n !== 2) throw new Error(s.n + ' journeys');
+    if (s.n !== 1) throw new Error('a return journey counted as ' + s.n + ' trips');
+    if (s.legs !== 2) throw new Error(s.legs + ' legs');
     if (s.km < 19000 || s.km > 19600) throw new Error(Math.round(s.km) + ' km for HKG–London and back');
     if (s.countries.join() !== 'HK,GB') throw new Error('countries ' + s.countries.join());
     if (s.min < 1400) throw new Error('only ' + s.min + ' minutes estimated');
@@ -113,7 +114,7 @@ const pp = '#view-passport';
     if (legs.length !== 2) throw new Error(JSON.stringify(legs));
     if (!legs.every(l => l.guessed)) throw new Error('not marked as estimated');
     if (!legs.some(l => l.to === 'FR')) throw new Error('Bordeaux was not placed in France');
-    if (!await page.locator(`${pp} .pj-meta:has-text("由行程估計")`).count()) throw new Error('the list does not say so');
+    if (!await page.locator(`${pp} .pj-meta:has-text("行程估計")`).count()) throw new Error('the list does not say so');
   });
 
   await t.step('editing a trip journey makes it your own, replacing the worked-out one', async () => {
@@ -170,7 +171,8 @@ const pp = '#view-passport';
   await t.step('the years filter the passport', async () => {
     await page.click(`${pp} [data-act="pp-year"][data-year="2025"]`);
     const big = await page.textContent(`${pp} .pp-big b`);
-    const want = await page.evaluate(() => window.Passport.all().filter(j => j.date.slice(0, 4) === '2025').length);
+    const want = await page.evaluate(() => window.Passport.groupTrips(window.Passport.all())
+      .filter(t => t.start.slice(0, 4) === '2025').length);
     if (Number(big) !== want) throw new Error(`shows ${big}, 2025 has ${want}`);
     const title = await page.textContent(`${pp} .pp-title h2`);
     if (!/^2025 /.test(title)) throw new Error('title reads ' + title);
@@ -198,6 +200,99 @@ const pp = '#view-passport';
       window.Passport.flightDate('2026-03-04 07:00', { startDate: '2026-03-01' })
     ]);
     if (out.join() !== '2025-09-18,2026-01-02,2026-03-04') throw new Error(out.join());
+  });
+
+  await t.step('a chain of legs back to where it began is one trip', async () => {
+    const r = await page.evaluate(() => {
+      const P = window.Passport, pl = q => P.search(q)[0].place;
+      const leg = (a, b, d, mode) => ({ from: pl(a), to: pl(b), date: d, mode: mode || 'flight' });
+      const trips = P.groupTrips([
+        leg('HKG', 'Singapore', '2015-04-06'), leg('Singapore', 'Malacca', '2015-04-09', 'bus'),
+        leg('Malacca', 'Singapore', '2015-04-10', 'bus'), leg('Singapore', 'HKG', '2015-04-10'),
+        leg('HKG', 'CTS', '2015-12-28'), leg('CTS', 'HKG', '2016-01-01'),
+        leg('LGW', 'AGP', '2026-09-18'), leg('AGP', 'LHR', '2026-09-21'),
+        leg('HKG', 'LHR', '2019-09-01')
+      ]);
+      return trips.map(t => t.legs.length + ':' + t.places.map(p => P.cleanCity(p.city)).join('+')).join(' | ');
+    });
+    /* newest first: Málaga (Gatwick out, Heathrow back is still London),
+       the one-way move, Hokkaido over New Year, the Singapore loop */
+    if (r !== '2:Málaga | 1:London | 2:Sapporo | 4:Singapore+Malacca') throw new Error(r);
+  });
+
+  await t.step('an airport is named by the city it serves, so airport and city entries match', async () => {
+    const r = await page.evaluate(() => {
+      const P = window.Passport, city = q => P.cityName(P.search(q)[0].place);
+      return ['CTS', 'Sapporo', 'NRT', 'HND', 'Tokyo', 'KIX', 'LGW', 'STN', 'London', 'EWR', 'CDG', 'ICN']
+        .map(q => q + '=' + city(q)).join(' ');
+    });
+    const want = 'CTS=Sapporo Sapporo=Sapporo NRT=Tokyo HND=Tokyo Tokyo=Tokyo KIX=Osaka LGW=London STN=London ' +
+      'London=London EWR=New York City CDG=Paris ICN=Seoul';
+    if (r !== want) throw new Error(r);
+  });
+
+  await t.step('towns without an airport are found, in English or Chinese', async () => {
+    const r = await page.evaluate(() => ['Kyoto', '京都', 'Nara', 'Bruges', '布魯日', 'Seville', 'Sintra', 'Malacca']
+      .map(q => { const h = window.Passport.search(q)[0]; return h ? h.place.label + '/' + h.place.cc : q + '?'; }).join(' '));
+    const want = 'Kyoto/JP Kyoto/JP Nara/JP Bruges/BE Bruges/BE Seville/ES Sintra/PT Malacca/MY';
+    if (r !== want) throw new Error(r);
+  });
+
+  await t.step('anywhere else can be looked up on the online map', async () => {
+    await page.route(/nominatim\.openstreetmap\.org/, r => r.fulfill({ contentType: 'application/json',
+      body: JSON.stringify([{ name: 'Hakone', lat: '35.23', lon: '139.1',
+        address: { state: 'Kanagawa Prefecture', country: 'Japan', country_code: 'jp' } }]) }));
+    await open();
+    await page.click(`${pp} [data-act="pj-add"]`);
+    await page.waitForSelector('#pj-sheet');
+    await page.fill('#pj-to', 'Hakone');
+    await page.waitForSelector('#pj-to-list li.pf-more');
+    await page.locator('#pj-to-list li.pf-more').dispatchEvent('mousedown');
+    await page.waitForSelector('#pj-to-list li:not(.pf-more)');
+    await page.locator('#pj-to-list li:not(.pf-more)').first().dispatchEvent('mousedown');
+    const pl = JSON.parse(await page.getAttribute('#pj-to', 'data-place'));
+    if (pl.city !== 'Hakone' || pl.cc !== 'JP' || Math.abs(pl.lat - 35.23) > 0.01) throw new Error(JSON.stringify(pl));
+    await page.click('#pj-sheet [data-pj="close"]');
+    await page.unroute(/nominatim\.openstreetmap\.org/);
+  });
+
+  await t.step('every place reads the same way: English city, then code and country', async () => {
+    await open();
+    const rows = await page.evaluate(() => [...document.querySelectorAll('#view-passport .pj-place b')].map(b => b.textContent));
+    const chinese = rows.filter(t => /[\u3400-\u9fff]/.test(t));
+    if (chinese.length) throw new Error('Chinese city names: ' + chinese.join(', '));
+    if (rows.some(t => t.includes('/'))) throw new Error('a two-town name: ' + rows.find(t => t.includes('/')));
+  });
+
+  await t.step('the arrows line up down the list', async () => {
+    const xs = await page.evaluate(() => [...document.querySelectorAll('#view-passport .pj-arrow')]
+      .map(a => Math.round(a.getBoundingClientRect().left)));
+    if (new Set(xs).size !== 1) throw new Error('arrows at ' + [...new Set(xs)].join(', '));
+  });
+
+  await t.step('no airline count; legs counted instead', async () => {
+    const labels = await page.locator(`${pp} .pp-stats dt`).allTextContents();
+    if (labels.includes('航空公司')) throw new Error('airlines still shown');
+    if (!labels.includes('航段')) throw new Error('no leg count');
+  });
+
+  await t.step('your own photo goes where the app icon was', async () => {
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 600; c.height = 400;
+      const g = c.getContext('2d'); g.fillStyle = '#c98a4b'; g.fillRect(0, 0, 600, 400);
+      return c.toDataURL('image/png').split(',')[1];
+    });
+    const chooser = page.waitForEvent('filechooser');
+    await page.click(`${pp} [data-act="pp-photo"]`);
+    await (await chooser).setFiles({ name: 'me.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+    await page.waitForSelector(`${pp} .pp-photo img`);
+    const size = await page.evaluate(() => {
+      const img = document.querySelector('#view-passport .pp-photo img');
+      return new Promise(r => { const i = new Image(); i.onload = () => r(i.width + 'x' + i.height); i.src = img.src; });
+    });
+    if (size !== '360x480') throw new Error('stored at ' + size + ', not cropped to 3:4');
+    await open();
+    if (!await page.locator(`${pp} .pp-photo img`).count()) throw new Error('lost on reload');
   });
 
   await t.step('the passport travels with sync, newest copy wins', async () => {

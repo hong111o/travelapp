@@ -1836,6 +1836,31 @@
     if (sheet) sheet.remove();
   }
 
+  /* Pick a photo for the passport. One hidden file input, reused. */
+  function pickPassportPhoto(after) {
+    var input = U.el('pp-photo-file');
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.id = 'pp-photo-file';
+      input.hidden = true;
+      document.body.appendChild(input);
+    }
+    input.value = '';
+    input.onchange = function () {
+      var f = input.files && input.files[0];
+      if (!f) return;
+      Passport.makePhoto(f).then(function (data) {
+        Passport.setPhoto(data);
+        paintPassport();
+        if (after) after();
+        U.toast('換咗護照相');
+      }, function (err) { U.toast(err.message, true); });
+    };
+    input.click();
+  }
+
   function openHolderSheet() {
     var wrap = document.createElement('div');
     wrap.innerHTML = Passport.holderSheetHTML();
@@ -1848,6 +1873,8 @@
       var b = e.target.closest ? e.target.closest('[data-ph]') : null;
       if (!b) { if (e.target === sheet) closeHolderSheet(); return; }
       if (b.getAttribute('data-ph') === 'close') { closeHolderSheet(); return; }
+      if (b.getAttribute('data-ph') === 'photo') { closeHolderSheet(); pickPassportPhoto(); return; }
+      if (b.getAttribute('data-ph') === 'nophoto') { Passport.setPhoto(null); closeHolderSheet(); paintPassport(); return; }
       var typed = (U.el('ph-home').value || '').trim();
       var home = Passport.placeOf('ph-home');
       if (typed && !home) {
@@ -1876,6 +1903,7 @@
       else if (act === 'pj-add') openJourneySheet(null);
       else if (act === 'pj-edit') { var j = journeyByKey(b.getAttribute('data-key')); if (j) openJourneySheet(j); }
       else if (act === 'pp-holder') openHolderSheet();
+      else if (act === 'pp-photo') pickPassportPhoto();
     });
   }
 

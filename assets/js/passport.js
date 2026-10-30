@@ -51,7 +51,7 @@
   /* --- places ------------------------------------------------------------- */
 
   var loading = null;
-  var byCode = null, list = null, cities = null;
+  var byCode = null, list = null, cities = null, towns = null;
 
   function loadScript(src) {
     return new Promise(function (resolve, reject) {
@@ -69,9 +69,19 @@
     if (loading) return loading;
     loading = Promise.all([
       global.TM_PLACES ? null : loadScript('data/places.js'),
-      global.TM_WORLD ? null : loadScript('data/world.js')
+      global.TM_WORLD ? null : loadScript('data/world.js'),
+      global.TM_CITIES ? null : loadScript('data/cities.js')
     ]).then(function () {
       if (byCode) return;
+      /* Towns and cities, biggest first: the list a city is picked from,
+         and the list that says which city an airport serves. */
+      towns = [];
+      String(global.TM_CITIES || '').split('\n').forEach(function (line, i) {
+        var f = line.split('|');
+        if (f.length < 4) return;
+        var nm = cleanCity(f[0]);
+        towns.push({ name: nm, cc: f[1], lat: Number(f[2]), lng: Number(f[3]), rank: i, key: fold(nm) });
+      });
       byCode = {}; list = []; cities = {};
       String(global.TM_PLACES || '').split('\n').forEach(function (line) {
         var f = line.split('|');
@@ -112,42 +122,147 @@
     '奧斯陸': 'Oslo', '赫爾辛基': 'Helsinki', '雷克雅未克': 'Reykjavik', '杜拜': 'Dubai', '多哈': 'Doha', '開羅': 'Cairo',
     '紐約': 'New York', '洛杉磯': 'Los Angeles', '三藩市': 'San Francisco', '西雅圖': 'Seattle', '芝加哥': 'Chicago',
     '溫哥華': 'Vancouver', '多倫多': 'Toronto', '悉尼': 'Sydney', '墨爾本': 'Melbourne', '布里斯本': 'Brisbane',
-    '奧克蘭': 'Auckland', '昆士頓': 'Queenstown'
+    '奧克蘭': 'Auckland', '昆士頓': 'Queenstown',
+    '京都': 'Kyoto', '奈良': 'Nara', '神戶': 'Kobe', '橫濱': 'Yokohama', '廣島': 'Hiroshima', '金澤': 'Kanazawa',
+    '仙台': 'Sendai', '函館': 'Hakodate', '長崎': 'Nagasaki', '熊本': 'Kumamoto', '鹿兒島': 'Kagoshima', '小樽': 'Otaru',
+    '大邱': 'Daegu', '慶州': 'Gyeongju', '台南': 'Tainan', '臺南': 'Tainan', '花蓮': 'Hualien', '新竹': 'Hsinchu',
+    '桂林': 'Guilin', '蘇州': 'Suzhou', '南京': 'Nanjing', '青島': 'Qingdao', '昆明': 'Kunming', '麗江': 'Lijiang',
+    '珠海': 'Zhuhai', '武漢': 'Wuhan', '長沙': 'Changsha', '天津': 'Tianjin', '大連': 'Dalian', '哈爾濱': 'Harbin',
+    '馬六甲': 'Malacca', '檳城': 'Penang', '蘭卡威': 'Langkawi', '亞庇': 'Kota Kinabalu', '芭堤雅': 'Pattaya', '蘇梅': 'Koh Samui',
+    '暹粒': 'Siem Reap', '金邊': 'Phnom Penh', '仰光': 'Yangon', '加德滿都': 'Kathmandu', '德里': 'Delhi', '孟買': 'Mumbai',
+    '布魯日': 'Bruges', '塞維爾': 'Sevilla', '科隆': 'Cologne', '紐倫堡': 'Nuremberg', '琉森': 'Lucerne', '因特拉肯': 'Interlaken',
+    '薩爾斯堡': 'Salzburg', '海德堡': 'Heidelberg', '比薩': 'Pisa', '維羅納': 'Verona', '博洛尼亞': 'Bologna', '都靈': 'Turin',
+    '尼斯': 'Nice', '馬賽': 'Marseille', '史特拉斯堡': 'Strasbourg', '牛津': 'Oxford', '劍橋': 'Cambridge', '巴斯': 'Bath',
+    '約克': 'York', '利物浦': 'Liverpool', '布萊頓': 'Brighton', '格拉斯哥': 'Glasgow', '卑爾根': 'Bergen', '哥德堡': 'Gothenburg',
+    '鹿特丹': 'Rotterdam', '安特衛普': 'Antwerp', '根特': 'Ghent', '盧森堡': 'Luxembourg', '布拉提斯拉瓦': 'Bratislava',
+    '杜布羅夫尼克': 'Dubrovnik', '馬拉喀什': 'Marrakech', '開普敦': 'Cape Town', '溫哥華島': 'Victoria',
+    '拉斯維加斯': 'Las Vegas', '夏威夷': 'Honolulu', '檀香山': 'Honolulu', '波士頓': 'Boston', '華盛頓': 'Washington',
+    '坎昆': 'Cancun', '墨西哥城': 'Mexico City', '利馬': 'Lima', '庫斯科': 'Cusco', '布宜諾斯艾利斯': 'Buenos Aires'
   };
 
+  /* The city a point belongs to, as a traveller would name it: the
+     biggest town within 70 km. So Narita reads Tokyo, New Chitose reads
+     Sapporo, Gatwick reads London — an airport and a city entered for the
+     same trip come out the same. A place that is a big city in its own
+     right (Oakland beside San Francisco) keeps its own name. */
+  var metroCache = {};
+  function metroOf(lat, lng, own) {
+    if (!towns || lat == null || lng == null) return '';
+    var k = lat.toFixed(2) + ',' + lng.toFixed(2) + '|' + (own || '');
+    if (metroCache[k] != null) return metroCache[k];
+    var best = null, ownTown = null;
+    var lim = 70000, ownName = fold(cleanCity(own));
+    for (var i = 0; i < towns.length; i++) {
+      var t = towns[i];
+      if (Math.abs(t.lat - lat) > 0.7 || Math.abs(t.lng - lng) > 1.1) continue;
+      var m = U.metresBetween(t, { lat: lat, lng: lng });
+      if (m > lim) continue;
+      if (!best) best = t;                       /* towns are biggest first */
+      if (ownName && t.key === ownName && m < 30000) { ownTown = t; break; }
+    }
+    /* Ranked in the top 1,500 (roughly 400,000 people and up): a city in
+       its own right, named as itself. */
+    var name = ownTown && ownTown.rank < 1500 ? ownTown.name : best ? best.name : cleanCity(own);
+    metroCache[k] = name;
+    return name;
+  }
+
+  /* The data's city names are sometimes two towns at once —
+     "Chitose / Tomakomai", "Bordeaux/Merignac". The first is the one
+     anyone would say. */
+  function cleanCity(c) {
+    return String(c || '').split('/')[0].replace(/\s+/g, ' ').trim()
+      /* Japanese municipalities carry their official suffix: Nara-shi. */
+      .replace(/-(shi|ku|machi)$/i, '');
+  }
+
   function toPlace(p, kind) {
-    return { label: kind === 'city' ? p.city : p.code + ' · ' + p.city, code: kind === 'city' ? '' : p.code,
-      city: p.city, cc: p.cc, lat: p.lat, lng: p.lng };
+    if (kind === 'town') return { label: p.name, code: '', city: p.name, cc: p.cc, lat: p.lat, lng: p.lng };
+    var city = metroOf(p.lat, p.lng, p.city) || cleanCity(p.city);
+    return { label: kind === 'city' ? city : p.code + ' · ' + city, code: kind === 'city' ? '' : p.code,
+      city: city, cc: p.cc, lat: p.lat, lng: p.lng };
+  }
+
+  /* What a stored place is called now: an airport by the city it serves
+     (journeys saved before that rule existed included), anything else by
+     its own name, cleaned. */
+  function cityName(p) {
+    if (!p) return '';
+    if (p.code && byCode && byCode[p.code]) {
+      var a = byCode[p.code];
+      return metroOf(a.lat, a.lng, a.city) || cleanCity(a.city);
+    }
+    return cleanCity(p.city || p.label);
   }
 
   /* Suggestions for what has been typed: an exact airport code first,
      then cities, then airports by name. Assumes load() has resolved. */
+  /* English names the GeoNames data spells the local way. */
+  var EXONYM = {
+    'bruges': 'brugge', 'seville': 'sevilla', 'cologne': 'koln', 'nuremberg': 'nurnberg', 'lucerne': 'luzern',
+    'gothenburg': 'goteborg', 'antwerp': 'antwerpen', 'ghent': 'gent', 'marrakech': 'marrakesh',
+    'penang': 'george town', 'the hague': 'den haag', 'florence': 'florence', 'saigon': 'ho chi minh city',
+    'bombay': 'mumbai', 'peking': 'beijing', 'canton': 'guangzhou', 'leghorn': 'livorno', 'genoa': 'genoa'
+  };
+
+  /* Suggestions for what has been typed: an exact airport code first,
+     then towns and cities (biggest first), then airports by name or city.
+     Assumes load() has resolved. */
   function search(q, limit) {
     q = String(q || '').trim();
     if (!q || !list) return [];
     limit = limit || 8;
     var out = [], seen = {};
-    function add(p, kind) {
-      var k = kind + (kind === 'city' ? fold(p.city) + p.cc : p.code);
+    function add(p, kind, typedName) {
+      var k = kind === 'airport' ? 'a' + p.code : 'c' + fold(kind === 'town' ? p.name : p.city) + p.cc;
       if (seen[k] || out.length >= limit) return;
       seen[k] = true;
-      out.push({ kind: kind, place: toPlace(p, kind), sub: kind === 'city' ? countryName(p.cc) : p.name });
+      var place = toPlace(p, kind);
+      /* Typed "Bruges", found Brugge: show the name that was typed. */
+      if (typedName && kind === 'town') { place.label = typedName; place.city = typedName; }
+      out.push({ kind: kind, place: place,
+        sub: kind === 'airport' ? p.name : countryName(p.cc) });
     }
     var up = q.toUpperCase();
     if (/^[A-Z]{3}$/.test(up) && byCode[up]) add(byCode[up], 'airport');
 
     var term = fold(ALIAS[q] || q);
-    Object.keys(cities).forEach(function (k) {
-      if (k.indexOf(term) === 0) add(cities[k], 'city');
-    });
+    var exo = EXONYM[term];
+    if (exo && exo !== term) {
+      for (var e = 0; e < towns.length; e++) {
+        if (towns[e].key === exo) { var said = ALIAS[q] || q;
+          add(towns[e], 'town', said.charAt(0).toUpperCase() + said.slice(1)); break; }
+      }
+    }
+    for (var t = 0; t < towns.length && out.length < Math.min(limit, 5); t++) {
+      if (towns[t].key.indexOf(term) === 0) add(towns[t], 'town');
+    }
     for (var i = 0; i < list.length && out.length < limit; i++) {
-      var p = list[i];
-      if (fold(p.city).indexOf(term) === 0) add(p, 'airport');
+      if (fold(list[i].city).indexOf(term) === 0) add(list[i], 'airport');
     }
     for (var j = 0; j < list.length && out.length < limit; j++) {
       if (list[j].key.indexOf(term) >= 0) add(list[j], 'airport');
     }
     return out;
+  }
+
+  /* Anywhere the lists do not have — a village, an island — from
+     OpenStreetMap, online only. Names come back in English to match. */
+  function searchOnline(q) {
+    var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&accept-language=en&q=' +
+      encodeURIComponent(q);
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) {
+      if (!r.ok) throw new Error('搵唔到（' + r.status + '）');
+      return r.json();
+    }).then(function (rows) {
+      return (rows || []).map(function (r) {
+        var a = r.address || {};
+        var name = r.name || String(r.display_name || '').split(',')[0];
+        var cc = String(a.country_code || '').toUpperCase();
+        return { kind: 'online', sub: [a.state || a.region || a.county, a.country].filter(Boolean).join(', '),
+          place: { label: name, code: '', city: name, cc: cc, lat: Number(r.lat), lng: Number(r.lon) } };
+      }).filter(function (h) { return h.place.label && isFinite(h.place.lat) && isFinite(h.place.lng); });
+    });
   }
 
   /* The country a coordinate is in, near enough: the country of the
@@ -256,8 +371,11 @@
     var p = trip.place || {};
     if (!home || p.lat == null || p.lng == null) return [];
     var near = nearest(p.lat, p.lng);
-    var dest = { label: p.name || trip.title, code: '', city: p.name || trip.title,
-      cc: near ? near.cc : '', lat: p.lat, lng: p.lng };
+    /* Named after the nearest airport's city, in English like every other
+       place in the passport; the trip's own name (often Chinese) only when
+       no airport is close enough to speak for it. */
+    var name = metroOf(p.lat, p.lng, '') || (p.name || trip.title);
+    var dest = { label: name, code: '', city: name, cc: near ? near.cc : '', lat: p.lat, lng: p.lng };
     var dist = U.metresBetween(home, dest) / 1000;
     if (dist < 30) return [];
     var mode = dist > 600 ? 'flight' : 'train';
@@ -289,6 +407,56 @@
     });
   }
 
+  /* Legs into trips. A trip runs from leaving somewhere until you are
+     back there: HKG → Singapore → Malacca → Singapore → HKG is one trip of
+     four legs, and a return flight is one trip of two, not two trips.
+     A leg continues the trip when it leaves from where the last one
+     arrived (within 80 km, so Gatwick counts as Heathrow) and within 60
+     days; legs worked out from one Travel Marvel trip always belong
+     together. A leg that never comes back is a trip of its own. */
+  function sameCity(a, b) {
+    var m = U.metresBetween(a, b);
+    return m != null && m < 80000;
+  }
+
+  function daysBetween(a, b) {
+    var x = U.parseISODate(a), y = U.parseISODate(b);
+    return x && y ? Math.round((y - x) / 86400000) : 9999;
+  }
+
+  function groupTrips(legs) {
+    var asc = legs.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    var trips = [], cur = null;
+    asc.forEach(function (l) {
+      var joins = cur && cur.open && (
+        (l.tripId && cur.tripId === l.tripId) ||
+        (sameCity(l.from, cur.legs[cur.legs.length - 1].to) &&
+         daysBetween(cur.legs[cur.legs.length - 1].date, l.date) <= 60 &&
+         (!l.tripId || !cur.tripId || l.tripId === cur.tripId)));
+      if (joins) cur.legs.push(l);
+      else {
+        cur = { legs: [l], open: true, tripId: l.tripId || '' };
+        trips.push(cur);
+      }
+      if (sameCity(l.to, cur.legs[0].from)) cur.open = false;
+    });
+    trips.forEach(function (t) {
+      t.start = t.legs[0].date;
+      t.end = t.legs[t.legs.length - 1].date;
+      t.origin = t.legs[0].from;
+      /* Where it went: every stop that is not the place it started. */
+      var seen = {};
+      t.places = [];
+      t.legs.forEach(function (l) {
+        var k = fold(cityName(l.to)) + l.to.cc;
+        if (sameCity(l.to, t.origin) || seen[k]) return;
+        seen[k] = true;
+        t.places.push(l.to);
+      });
+    });
+    return trips.reverse();
+  }
+
   function years(js) {
     var y = {};
     js.forEach(function (j) { if (j.date) y[j.date.slice(0, 4)] = true; });
@@ -296,7 +464,8 @@
   }
 
   function stats(js) {
-    var s = { n: js.length, km: 0, min: 0, countries: [], airports: {}, cities: {}, airlines: {}, modes: {}, first: '' };
+    var s = { n: groupTrips(js).length, legs: js.length, km: 0, min: 0, countries: [], airports: {}, cities: {},
+      modes: {}, first: '' };
     var cc = {};
     js.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); }).forEach(function (j) {
       s.km += km(j);
@@ -304,15 +473,14 @@
       [j.from, j.to].forEach(function (p) {
         if (p.cc && !cc[p.cc]) { cc[p.cc] = true; s.countries.push(p.cc); }
         if (p.code) s.airports[p.code] = true;
-        if (p.city) s.cities[fold(p.city) + p.cc] = true;
+        var cn = cityName(p);
+        if (cn) s.cities[fold(cn) + p.cc] = true;
       });
-      if (j.airline) s.airlines[j.airline] = true;
       s.modes[j.mode] = (s.modes[j.mode] || 0) + 1;
       if (!s.first || j.date < s.first) s.first = j.date;
     });
     s.airports = Object.keys(s.airports).length;
     s.cities = Object.keys(s.cities).length;
-    s.airlines = Object.keys(s.airlines).length;
     return s;
   }
 
@@ -337,6 +505,35 @@
     var p = raw();
     if (j.auto) p.hidden[j.key] = new Date().toISOString();
     else p.journeys = p.journeys.filter(function (x) { return x.uid !== j.uid; });
+    return write(p);
+  }
+
+  /* Your passport photo: cropped to a passport's 3:4 from the centre and
+     kept small (360 × 480 JPEG, a few tens of KB), so it sits in the
+     passport record itself and travels with sync — encrypted, like the
+     rest — rather than needing a store of its own. */
+  function makePhoto(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var W = 360, H = 480, sw = img.naturalWidth, sh = img.naturalHeight;
+        var scale = Math.max(W / sw, H / sh);
+        var cw = W / scale, ch = H / scale;
+        var c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        c.getContext('2d').drawImage(img, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, W, H);
+        resolve(c.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('讀唔到呢張相')); };
+      img.src = url;
+    });
+  }
+
+  function setPhoto(dataUrl) {
+    var p = raw();
+    if (dataUrl) p.photo = dataUrl; else delete p.photo;
     return write(p);
   }
 
@@ -443,28 +640,57 @@
 
   function numKM(n) { return Math.round(n).toLocaleString('en'); }
 
+  /* One layout for every place, whichever way it was entered: the city
+     in English on top, then the airport code (if any) and the country in
+     Chinese. Fixed columns, so the arrows line up down the list. */
+  function placeHTML(p) {
+    var city = cityName(p);
+    var sub = [p.code, countryName(p.cc)].filter(Boolean).join(' · ');
+    return '<span class="pj-place"><b>' + esc(city) + '</b><small>' + esc(sub) + '</small></span>';
+  }
+
+  /* The whole row is the edit button: on a phone the column a ✏️ took
+     was the room the city names needed. */
   function journeyRow(j) {
     var m = MODES[j.mode] || MODES.flight;
-    var where = function (p) {
-      return '<span class="pj-place"><b>' + esc(p.code || p.city || p.label) + '</b>' +
-        (p.code ? '<small>' + esc(p.city) + '</small>' : '<small>' + esc(countryName(p.cc) || '') + '</small>') + '</span>';
-    };
-    return '<li class="pj">' +
-      '<span class="pj-mode" aria-label="' + m.label + '">' + m.icon + '</span>' +
-      '<span class="pj-route">' + where(j.from) + '<span class="pj-arrow" aria-hidden="true">→</span>' + where(j.to) + '</span>' +
-      '<span class="pj-meta">' + esc(j.date || '') +
-        '<small>' + numKM(km(j)) + ' km' + (j.flightNo ? ' · ' + esc(j.flightNo) : '') +
-        (j.auto ? ' · ' + (j.guessed ? '由行程估計' : '由行程') : '') + '</small></span>' +
-      '<button class="iconbtn" data-act="pj-edit" data-key="' + esc(j.auto ? j.key : j.uid) + '" aria-label="改呢段旅程">✏️</button>' +
-      '</li>';
+    var label = '改：' + cityName(j.from) + ' 去 ' + cityName(j.to) + '，' + (j.date || '');
+    return '<li><button class="pj" data-act="pj-edit" data-key="' + esc(j.auto ? j.key : j.uid) + '" aria-label="' + esc(label) + '">' +
+      '<span class="pj-mode" aria-hidden="true">' + m.icon + '</span>' +
+      placeHTML(j.from) + '<span class="pj-arrow" aria-hidden="true">→</span>' + placeHTML(j.to) +
+      '<span class="pj-meta">' + esc(String(j.date || '').slice(5).replace('-', '/')) +
+        '<small>' + numKM(km(j)) + ' km</small>' +
+        (j.flightNo ? '<small>' + esc(j.flightNo) + '</small>' : '') +
+        (j.auto ? '<small class="pj-auto">' + (j.guessed ? '行程估計' : '由行程') + '</small>' : '') + '</span>' +
+      '</button></li>';
+  }
+
+  function tripHTML(t) {
+    var names = t.places.map(cityName);
+    var title = names.length ? names.slice(0, 3).join(' · ') + (names.length > 3 ? ' …' : '') : cityName(t.legs[0].to);
+    var flags = [];
+    t.places.forEach(function (p) { var f = flag(p.cc); if (f && flags.indexOf(f) < 0) flags.push(f); });
+    var days = daysBetween(t.start, t.end) + 1;
+    var when = t.start === t.end ? t.start : t.start + ' – ' + (t.end.slice(0, 4) === t.start.slice(0, 4) ? t.end.slice(5) : t.end);
+    return '<li class="pt">' +
+      '<div class="pt-head"><span class="pt-flags" aria-hidden="true">' + flags.join('') + '</span>' +
+        '<span class="pt-title">' + esc(title) + '</span>' +
+        '<span class="pt-when">' + esc(when) + (days > 1 ? ' · ' + days + ' 日' : '') + ' · ' + t.legs.length + ' 段</span></div>' +
+      '<ul class="pj-list">' + t.legs.map(journeyRow).join('') + '</ul></li>';
   }
 
   /* The whole page. `year` is '' for all time. */
   function viewHTML(year) {
     var p = raw();
     var everything = all();
-    var ys = years(everything);
-    var js = year ? everything.filter(function (j) { return String(j.date).slice(0, 4) === year; }) : everything;
+    /* Years in which a trip began: a trip over New Year is filed under
+       the year it left, so the next year must not get an empty tab. */
+    var ys = years(groupTrips(everything).map(function (t) { return { date: t.start }; }));
+    /* Trips are grouped across all time first, then filtered by the year
+       they started — so a trip over New Year stays one trip. */
+    var trips = groupTrips(everything);
+    if (year) trips = trips.filter(function (t) { return String(t.start).slice(0, 4) === year; });
+    var js = [];
+    trips.forEach(function (t) { js = js.concat(t.legs); });
     var s = stats(js);
     var visited = {};
     s.countries.forEach(function (c) { visited[c] = true; });
@@ -497,14 +723,17 @@
       '<div class="pp-page">' +
         '<div class="pp-title"><div><h2>' + (year ? year + ' ' : 'MY ') + 'TRAVEL MARVEL PASSPORT</h2>' +
           '<div class="pp-sub">🛂 PASSPORT · 護照 · PASAPORTE</div></div>' +
-          '<img src="assets/icon-192.png" alt="" width="52" height="52" class="pp-seal"></div>' +
+          '<button class="pp-photo' + (p.photo ? '' : ' empty') + '" data-act="pp-photo" aria-label="' +
+            (p.photo ? '換護照相' : '加護照相') + '">' +
+            (p.photo ? '<img src="' + esc(p.photo) + '" alt="">' : '<span aria-hidden="true">📷</span><small>加相</small>') +
+          '</button></div>' +
         '<div class="pp-main">' +
-          '<div class="pp-big"><b>' + s.n + '</b><span>段旅程</span></div>' +
+          '<div class="pp-big"><b>' + s.n + '</b><span>趟旅程</span></div>' +
           '<dl class="pp-meta">' +
             '<div><dt>持有人</dt><dd>' + esc(p.name || '未填名') + '</dd></div>' +
             '<div><dt>發出地</dt><dd>' + esc(homeCode || '未設定') + '</dd></div>' +
             '<div><dt>發出日期</dt><dd>' + esc(todayISO()) + '</dd></div>' +
-            '<div><dt>第一段旅程</dt><dd>' + esc(s.first || '—') + '</dd></div>' +
+            '<div><dt>第一趟旅程</dt><dd>' + esc(s.first || '—') + '</dd></div>' +
           '</dl>' +
         '</div>' +
         '<div class="pp-stats">' +
@@ -513,7 +742,7 @@
           '<div><dt>國家</dt><dd><b>' + s.countries.length + '</b></dd></div>' +
           '<div><dt>城市</dt><dd><b>' + s.cities + '</b></dd></div>' +
           '<div><dt>機場</dt><dd><b>' + s.airports + '</b></dd></div>' +
-          '<div><dt>航空公司</dt><dd><b>' + s.airlines + '</b></dd></div>' +
+          '<div><dt>航段</dt><dd><b>' + s.legs + '</b></dd></div>' +
         '</div>' +
         (modes ? '<div class="pp-modes">' + modes + '</div>' : '') +
       '</div>' +
@@ -530,11 +759,12 @@
       : '';
 
     var byYear = {};
-    js.forEach(function (j) { var y = String(j.date).slice(0, 4) || '—'; (byYear[y] = byYear[y] || []).push(j); });
-    var listHTML = js.length
+    trips.forEach(function (t) { var y = String(t.start).slice(0, 4) || '—'; (byYear[y] = byYear[y] || []).push(t); });
+    var listHTML = trips.length
       ? Object.keys(byYear).sort().reverse().map(function (y) {
-          return '<h3 class="pp-yh">' + esc(y) + '<small>' + byYear[y].length + ' 段</small></h3>' +
-            '<ul class="pj-list">' + byYear[y].map(journeyRow).join('') + '</ul>';
+          var legs = byYear[y].reduce(function (n, t) { return n + t.legs.length; }, 0);
+          return '<h3 class="pp-yh">' + esc(y) + '<small>' + byYear[y].length + ' 趟 · ' + legs + ' 段</small></h3>' +
+            '<ul class="pt-list">' + byYear[y].map(tripHTML).join('') + '</ul>';
         }).join('')
       : '<div class="card empty"><h2>護照仲係新嘅</h2><p class="tinynote">' +
           '撳「＋ 加一段旅程」記低以前去過嘅地方。之後喺 Travel Marvel 計劃嘅行程，' +
@@ -599,6 +829,11 @@
       '<div class="f"><label for="ph-name">持有人名 <span class="opt">（英文名會印喺護照底部嗰兩行）</span></label>' +
         '<input id="ph-name" type="text" autocomplete="name" value="' + esc(p.name || '') + '"></div>' +
       placeField('ph-home', '住喺邊', p.home) +
+      '<div class="f"><label>護照相</label><div class="ph-photo">' +
+        (p.photo ? '<img src="' + esc(p.photo) + '" alt="而家嘅護照相">' : '') +
+        '<button class="btn btn-sm" data-ph="photo">' + (p.photo ? '換相' : '📷 揀相') + '</button>' +
+        (p.photo ? '<button class="btn btn-sm btn-danger" data-ph="nophoto">移除</button>' : '') +
+      '</div></div>' +
       '<p class="tinynote">冇寫機票嘅行程，會當係由呢度出發再返嚟。</p>' +
       '<div class="jsonerr" id="ph-err" hidden></div>' +
       '<div class="sheet-foot"><button class="btn" data-ph="close">取消</button>' +
@@ -607,37 +842,69 @@
   }
 
   /* The place fields suggest as you type; picking one stores the whole
-     place on the input, which is what the form reads back. */
+     place on the input, which is what the form reads back. The last row
+     always offers to look further, online, for somewhere the lists do
+     not have. */
   function wirePlaceField(input) {
     var listEl = document.getElementById(input.id + '-list');
-    var hits = [], active = -1;
+    var hits = [], active = -1, busy = false, note = '';
     function close() { listEl.hidden = true; input.setAttribute('aria-expanded', 'false'); active = -1; }
+    function rows() {
+      var q = input.value.trim();
+      var more = q.length >= 2 ? [{ kind: 'more', q: q }] : [];
+      return hits.concat(more);
+    }
     function choose(i) {
-      var h = hits[i];
+      var h = rows()[i];
       if (!h) return;
+      if (h.kind === 'more') { lookOnline(h.q); return; }
       input.value = h.place.label;
       input.setAttribute('data-place', JSON.stringify(h.place));
       close();
     }
+    function lookOnline(q) {
+      if (busy) return;
+      if (navigator.onLine === false) { note = '冇網，連返網先可以喺網上搵'; paint(); return; }
+      busy = true; note = '喺網上地圖搵緊「' + q + '」…'; paint();
+      searchOnline(q).then(function (found) {
+        busy = false;
+        hits = found;
+        note = found.length ? '' : '網上地圖都搵唔到「' + q + '」，試下英文名或者附近嘅城市';
+        active = found.length ? 0 : -1;
+        paint();
+        input.focus();
+      }, function () {
+        busy = false; note = '網上搵唔到，遲啲再試'; paint();
+      });
+    }
     function paint() {
-      listEl.innerHTML = hits.map(function (h, i) {
+      var all = rows();
+      listEl.innerHTML = all.map(function (h, i) {
+        if (h.kind === 'more') {
+          return '<li role="option" class="pf-more" id="' + input.id + '-o' + i + '" data-i="' + i + '"' +
+            (i === active ? ' aria-selected="true"' : '') + '>' +
+            '<span class="pf-f">🌐</span><span class="pf-t"><b>喺網上地圖搵「' + esc(h.q) + '」</b>' +
+            '<small>' + esc(note || '細鎮、島、景點都搵得到') + '</small></span></li>';
+        }
         return '<li role="option" id="' + input.id + '-o' + i + '" data-i="' + i + '"' +
           (i === active ? ' aria-selected="true" class="on"' : '') + '>' +
           '<span class="pf-f">' + flag(h.place.cc) + '</span><span class="pf-t"><b>' + esc(h.place.label) +
           '</b><small>' + esc(h.sub || '') + '</small></span></li>';
       }).join('');
-      listEl.hidden = !hits.length;
-      input.setAttribute('aria-expanded', hits.length ? 'true' : 'false');
+      listEl.hidden = !all.length;
+      input.setAttribute('aria-expanded', all.length ? 'true' : 'false');
     }
     input.addEventListener('input', function () {
       input.removeAttribute('data-place');
       hits = search(input.value);
+      note = '';
       active = -1;
       paint();
     });
     input.addEventListener('keydown', function (e) {
       if (listEl.hidden) return;
-      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(hits.length - 1, active + 1); paint(); }
+      var n = rows().length;
+      if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(n - 1, active + 1); paint(); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); paint(); }
       else if (e.key === 'Enter') { e.preventDefault(); choose(active >= 0 ? active : 0); }
       else if (e.key === 'Escape') { e.stopPropagation(); close(); }
@@ -646,7 +913,7 @@
       var li = e.target.closest('li');
       if (li) { e.preventDefault(); choose(Number(li.getAttribute('data-i'))); }
     });
-    input.addEventListener('blur', function () { setTimeout(close, 120); });
+    input.addEventListener('blur', function () { setTimeout(function () { if (!busy) close(); }, 150); });
   }
 
   function placeOf(id) {
@@ -656,10 +923,10 @@
 
   global.Passport = {
     load: load, search: search, all: all, stats: stats, years: years, km: km, minutes: minutes,
-    fromTrip: fromTrip, flightDate: flightDate, viewHTML: viewHTML,
+    fromTrip: fromTrip, flightDate: flightDate, viewHTML: viewHTML, groupTrips: groupTrips, cleanCity: cleanCity, cityName: cityName, searchOnline: searchOnline,
     journeySheetHTML: journeySheetHTML, holderSheetHTML: holderSheetHTML,
     wirePlaceField: wirePlaceField, placeOf: placeOf,
-    saveJourney: saveJourney, remove: remove, setHolder: setHolder,
+    saveJourney: saveJourney, remove: remove, setHolder: setHolder, setPhoto: setPhoto, makePhoto: makePhoto,
     raw: raw, replace: function (p) { return write(p, true); }, MODES: MODES
   };
 })(window);
