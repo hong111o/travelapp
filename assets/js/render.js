@@ -14,12 +14,18 @@
   function heroHTML(trip) {
     var dates = U.dateRangeZH(trip.startDate, trip.endDate);
     return '' +
-      '<header class="hero">' +
+      /* The cover photo is painted into .hero-cover once it has been
+         read from IndexedDB (App.paintCover); until then, and when there
+         is none, the header is the plain wash it always was. */
+      '<header class="hero hero-trip">' +
+        '<div class="hero-cover" aria-hidden="true"></div>' +
         '<div class="hero-top">' +
           (readOnly ? '' :
             '<button class="btn btn-sm" data-act="library">‹ Travel Marvel</button>' +
+            '<button class="btn btn-sm" data-act="cover" aria-label="換封面相">🖼 封面</button>' +
             '<button class="btn btn-sm" data-act="edit">✏️ 編輯</button>') +
         '</div>' +
+        '<a class="hero-credit" hidden target="_blank" rel="noopener"></a>' +
         '<div class="hero-inner">' +
           (trip.kicker ? '<div class="kicker">' + esc(trip.kicker) + '</div>' : '') +
           '<h1>' + esc(trip.title || '未命名行程') + '</h1>' +
@@ -561,6 +567,28 @@
       side(prev, index - 1, 'prev', '‹ 前一日') +
       side(next, index + 1, 'next', '後一日 ›') +
       '</nav>';
+  }
+
+  /* --- cover -----------------------------------------------------
+     What the header shows is decided by the record in Cover; this only
+     offers the three ways to change it, and only those that would. */
+  function coverSheetHTML(kind) {
+    return '<div class="sheet" id="cover-sheet" aria-labelledby="cover-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="cover-sheet-h">🖼 封面相</h2>' +
+        '<button class="iconbtn" data-cv="close" aria-label="閂">✕</button></div>' +
+      '<p class="tinynote" style="margin-top:0">' +
+        (kind === 'own' ? '而家用緊你自己揀嘅相。'
+          : kind === 'none' ? '而家冇封面。'
+          : '而家用緊 Wikipedia 上面呢個城市嘅相。') +
+        ' 封面相淨係存喺呢部機，匯出行程唔會帶埋。</p>' +
+      '<div class="cvopts">' +
+        '<button class="btn btn-primary" data-cv="own">📷 揀自己張相</button>' +
+        (kind === 'own' || kind === 'none'
+          ? '<button class="btn" data-cv="auto">🌐 用返 Wikipedia 張</button>' : '') +
+        (kind !== 'none' ? '<button class="btn" data-cv="none">🚫 唔要封面</button>' : '') +
+      '</div>' +
+      '<input type="file" id="cover-file" accept="image/*" hidden>' +
+      '</div></div>';
   }
 
   /* --- what is booked -------------------------------------------
@@ -1309,6 +1337,7 @@
     findSheetHTML: findSheetHTML,
     spendSheetHTML: spendSheetHTML, moneyHTML: moneyHTML,
     bookingSheetHTML: bookingSheetHTML, bookingsHTML: bookingsHTML,
+    coverSheetHTML: coverSheetHTML,
     checklistHTML: checklistHTML,
     spendTotals: spendTotals, moneyText: moneyText,
     refreshCounts: refreshCounts, setActiveTrip: function (t) { activeTrip = t; }

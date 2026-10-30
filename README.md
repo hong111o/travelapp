@@ -37,6 +37,7 @@
 | 🎫 **訂咗嘅嘢** | 機票、酒店、火車、入場時段一張清單，訂位編號撳一下就 copy |
 | 🎒 **執嘢清單** | 要帶嘅嘢打返剔，下次複製行程就跟住嚟 |
 | 🌙 **深色模式** | 跟系統，或者自己撳。夜機、臥鋪、關燈之後都睇得舒服 |
+| 🏞️ **城市封面** | 自動用 Wikipedia 上面嗰個城市嘅風景相（有攝影師同授權註明），存低離線都睇到；撳「🖼 封面」可以換自己張相或者唔要 |
 | ↩️ **復原** | 撳錯刪除、匯入錯檔，一撳返到上一步 |
 | ⌨️ **鍵盤同讀屏** | 對話框困住焦點、Esc 閂、每個掣都有名 |
 
@@ -592,7 +593,7 @@ data/
 tests/
   run.js                    起個 server、逐個 suite 行、報結果
   *.test.js                 Playwright 行真 app（smoke / store / nav /
-                            spend / booking / a11y / theme / desktop）
+                            spend / booking / a11y / theme / desktop / cover）
 tools/
   bundle-trips.js           打包 script
 ```

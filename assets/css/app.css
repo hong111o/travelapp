@@ -918,3 +918,39 @@ body.dragging-now .rep{transition:transform .14s ease}
   .dcard:hover,.daystep-b:hover{border-color:var(--teal-soft)}
   .btn:hover{border-color:var(--teal-soft)}
 }
+
+/* ============================================================
+   TRIP COVER
+   The city's landscape behind the trip header. The scrim darkens
+   the side the title sits on and lets the photo show on the other,
+   so the type stays legible over any picture — a white church or a
+   bright beach included. Without a photo this is all inert and the
+   header is the plain wash.
+   ============================================================ */
+.hero-cover{position:absolute;inset:0;z-index:0;background:center 45% / cover no-repeat;
+  opacity:0;transition:opacity .5s ease}
+.hero-trip.hascover .hero-cover{opacity:1}
+.hero-trip.hascover::before{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(16,39,48,.55) 0%, rgba(16,39,48,0) 30%),
+    linear-gradient(100deg, rgba(16,39,48,.86) 0%, rgba(22,52,63,.62) 42%, rgba(30,71,86,.12) 100%)}
+.hero-trip .hero-inner{position:relative;z-index:2}
+.hero-trip.hascover h1,.hero-trip.hascover .sub,.hero-trip.hascover .dates,.hero-trip.hascover .kicker{
+  text-shadow:0 1px 14px rgba(0,0,0,.35)}
+.hero-trip .wave{z-index:2}
+.hero-credit{position:absolute;right:16px;bottom:52px;z-index:2;max-width:60%;
+  font-size:.66rem;color:rgba(255,255,255,.78);text-decoration:none;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  background:rgba(0,0,0,.28);padding:2px 8px;border-radius:999px}
+.hero-credit:hover{color:#fff}
+.hero-credit[hidden]{display:none}
+
+.cvopts{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+
+@media (min-width:1024px){
+  /* With a photo the header earns its height; let it breathe a little. */
+  .hero-trip.hascover{padding-bottom:120px}
+  .hero-credit{right:32px}
+}
+@media print{ .hero-cover,.hero-credit{display:none !important} .hero-trip::before{display:none} }
+@media (prefers-reduced-motion: reduce){ .hero-cover{transition:none} }

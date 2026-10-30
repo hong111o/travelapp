@@ -201,6 +201,7 @@
       Widgets.loadWeather(trip.place);
       Widgets.loadFX(trip.currency);
       Widgets.startCountdown(trip.departure);
+      paintCover(trip);
       startTodayTicker(trip);
     } else {
       showView('trip');
@@ -455,6 +456,103 @@
     U.el('find-gps').addEventListener('click', locateForFind);
     U.el('find-link').addEventListener('click', linkForFind);
     U.el('find-save').addEventListener('click', saveFind);
+  }
+
+  /* --- cover photo ------------------------------------------------- */
+
+  var coverURL = null;
+
+  function applyCover(rec) {
+    var hero = document.querySelector('#view-trip .hero-trip');
+    if (!hero) return;
+    var layer = hero.querySelector('.hero-cover');
+    var credit = hero.querySelector('.hero-credit');
+    if (coverURL) { URL.revokeObjectURL(coverURL); coverURL = null; }
+
+    if (!rec || !rec.blob) {
+      hero.classList.remove('hascover');
+      if (layer) layer.style.backgroundImage = '';
+      if (credit) credit.hidden = true;
+      return;
+    }
+    coverURL = URL.createObjectURL(rec.blob);
+    layer.style.backgroundImage = 'url("' + coverURL + '")';
+    hero.classList.add('hascover');
+
+    /* Wikipedia photos are someone's work under a licence that asks for
+       credit; one small line in the corner, linking to the file page. */
+    var c = rec.kind === 'auto' && rec.credit;
+    if (credit) {
+      if (c) {
+        credit.textContent = '📷 ' + [c.artist || 'Wikimedia Commons', c.license].filter(Boolean).join(' · ');
+        if (c.url) credit.href = c.url; else credit.removeAttribute('href');
+        credit.hidden = false;
+      } else {
+        credit.hidden = true;
+      }
+    }
+  }
+
+  function paintCover(trip) {
+    if (typeof Cover === 'undefined' || !Cover.supported()) return;
+    var id = trip.id;
+    Cover.ensure(trip).then(function (rec) {
+      /* The person may have moved to another trip while it loaded. */
+      if (!current || current.id !== id) return;
+      applyCover(rec);
+    });
+  }
+
+  function openCoverSheet() {
+    if (!current) return;
+    var trip = current;
+    Cover.get(trip.id).then(function (rec) {
+      var kind = rec ? (rec.kind === 'auto' && !rec.blob ? 'auto' : rec.kind) : 'auto';
+      var wrap = document.createElement('div');
+      wrap.innerHTML = Render.coverSheetHTML(kind);
+      var sheet = wrap.firstChild;
+      document.body.appendChild(sheet);
+      releaseTrap.cover = U.trapFocus(sheet, closeCoverSheet);
+      var first = sheet.querySelector('[data-cv="own"]');
+      if (first) first.focus();
+
+      var file = U.el('cover-file');
+      file.addEventListener('change', function () {
+        var f = file.files && file.files[0];
+        if (!f) return;
+        Cover.setOwn(trip.id, f).then(function (r) {
+          closeCoverSheet();
+          applyCover(r);
+          U.toast('換咗封面');
+        }, function (err) { U.toast(err.message || '用唔到呢張相', true); });
+      });
+
+      sheet.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-cv]') : null;
+        if (!b) { if (e.target === sheet) closeCoverSheet(); return; }
+        var what = b.getAttribute('data-cv');
+        if (what === 'close') { closeCoverSheet(); return; }
+        if (what === 'own') { file.click(); return; }
+        if (what === 'none') {
+          Cover.setNone(trip.id).then(function () { closeCoverSheet(); applyCover(null); });
+          return;
+        }
+        if (what === 'auto') {
+          Cover.useAuto(trip.id).then(function () {
+            closeCoverSheet();
+            applyCover(null);
+            U.toast('搵緊相…');
+            paintCover(trip);
+          });
+        }
+      });
+    });
+  }
+
+  function closeCoverSheet() {
+    if (releaseTrap.cover) { releaseTrap.cover(); releaseTrap.cover = null; }
+    var sheet = U.el('cover-sheet');
+    if (sheet) sheet.remove();
   }
 
   /* --- booked, and packed ----------------------------------------- */
@@ -1133,6 +1231,7 @@
     if (act === 'open') { go('#/trip/' + encodeURIComponent(id)); }
     else if (act === 'edit') { go('#/edit/' + encodeURIComponent(id || (current && current.id))); }
     else if (act === 'library') { go('#/'); }
+    else if (act === 'cover') { e.preventDefault(); openCoverSheet(); }
     else if (act === 'home') { go('#/trip/' + encodeURIComponent(current.id)); }
     else if (act === 'day') { go('#/trip/' + encodeURIComponent(current.id) + '/' + encodeURIComponent(btn.getAttribute('data-day'))); }
     else if (act === 'food') { go('#/trip/' + encodeURIComponent(current.id) + '/food'); }
@@ -1183,6 +1282,7 @@
          otherwise sit there forever taking up space. */
       if (Photos.supported()) {
         Photos.clearTrip(id).catch(function (err) { console.warn('[photos] cleanup', err); });
+        Cover.remove(id);
       }
       renderLibrary();
       U.toast('刪除咗');
