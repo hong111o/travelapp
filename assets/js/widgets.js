@@ -354,6 +354,11 @@
     maps[day.id] = { map: map, bounds: latlngs };
   }
 
+  /* Still the map on record for its slot, and still on the page. */
+  function live(rec, map) {
+    return !!rec && rec.map === map && !!map.getContainer() && document.body.contains(map.getContainer());
+  }
+
   /* A map of arbitrary pins, for screens that are not a day: hotels
      lettered, other places as small dots. Kept with the day maps so it
      is cleaned up and re-fitted the same way. */
@@ -379,7 +384,9 @@
     maps[id] = { map: map, bounds: bounds, el: id };
     [40, 160].forEach(function (d) {
       setTimeout(function () {
-        if (!maps[id]) return;
+        /* A redraw in the meantime replaced or removed this map; touching
+           the old one throws inside Leaflet (_leaflet_pos). */
+        if (!live(maps[id], map)) return;
         map.invalidateSize();
         if (bounds.length === 1) map.setView(bounds[0], 15); else map.fitBounds(bounds, { padding: [34, 34] });
       }, d);
@@ -394,7 +401,7 @@
     if (!m) return;
     [30, 120].forEach(function (delay) {
       setTimeout(function () {
-        if (!maps[day.id]) return;
+        if (!live(maps[day.id], m.map)) return;
         m.map.invalidateSize();
         if (m.bounds.length === 1) m.map.setView(m.bounds[0], 15);
         else m.map.fitBounds(m.bounds, { padding: [34, 34] });
@@ -412,8 +419,7 @@
     refitTimer = setTimeout(function () {
       Object.keys(maps).forEach(function (id) {
         var m = maps[id];
-        var el = U.el(maps[id] && maps[id].el ? maps[id].el : 'map-' + id);
-        if (!m || !el || el.offsetParent === null) return;
+        if (!m || !live(m, m.map) || m.map.getContainer().offsetParent === null) return;
         m.map.invalidateSize();
         if (m.bounds.length === 1) m.map.setView(m.bounds[0], 15);
         else m.map.fitBounds(m.bounds, { padding: [34, 34] });

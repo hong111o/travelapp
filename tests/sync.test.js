@@ -13,20 +13,28 @@ const PASS = 'correct horse battery staple';
 const gists = {};
 let nextId = 1;
 let failAuth = false;
+const refused = [];
 
 async function fakeGitHub(ctx) {
   await ctx.route(/api\.github\.com/, async route => {
     const req = route.request();
     const url = new URL(req.url());
     const json = (status, body) => route.fulfill({ status, json: body,
-      headers: { 'access-control-allow-origin': '*' } });
+      headers: { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'x-fake', 'x-fake': '1' } });
     if (req.method() === 'OPTIONS') {
       return route.fulfill({ status: 204, headers: {
         'access-control-allow-origin': '*',
         'access-control-allow-headers': 'authorization, content-type, accept, x-github-api-version',
         'access-control-allow-methods': 'GET, POST, PATCH' } });
     }
-    if (failAuth || req.headers()['authorization'] !== 'Bearer ' + TOKEN) return json(401, { message: 'Bad credentials' });
+    /* allHeaders(), not headers(): the latter can be the provisional set,
+       which sometimes lacks Authorization — the fake then refused a
+       right token, now and again, and the second device "failed". */
+    const auth = (await req.allHeaders())['authorization'];
+    if (failAuth || auth !== 'Bearer ' + TOKEN) {
+      refused.push((failAuth ? 'failAuth ' : '') + req.method() + ' ' + url.pathname + ' auth=' + JSON.stringify(auth));
+      return json(401, { message: 'Bad credentials' });
+    }
 
     const m = url.pathname.match(/^\/gists(?:\/(\w+))?$/);
     if (!m) return json(404, {});
@@ -58,7 +66,8 @@ async function device(browser, trips) {
   page.on('dialog', d => d.accept());
   /* What GitHub (the fake, or anything else) answered, for failure messages. */
   const seen = [];
-  page.on('response', r => { if (/github/.test(r.url())) seen.push(r.status() + ' ' + r.request().method() + ' ' + new URL(r.url()).pathname); });
+  page.on('response', r => { if (/github/.test(r.url())) seen.push(r.status() + ' ' + r.request().method() + ' ' +
+    new URL(r.url()).pathname + (r.headers()['x-fake'] ? ' (fake)' : ' (NOT the fake)')); });
   await page.goto(BASE + '/index.html');
   await page.evaluate(ts => { localStorage.clear(); ts.forEach(t => window.Store.save(t)); }, trips || []);
   await page.goto('about:blank');
@@ -118,7 +127,7 @@ async function connect(page, token, pass) {
     await B.page.waitForSelector('#sy-err:not([hidden])');
     const msg = await B.page.textContent('#sy-err');
     if (!/密碼/.test(msg)) throw new Error('reads ' + msg + ' — GitHub answered: ' + B.seen.join(', ') +
-      ' — fake gists: ' + Object.keys(gists).join());
+      ' — fake gists: ' + Object.keys(gists).join() + ' — fake refused: ' + refused.join('; '));
     if (await B.page.evaluate(() => window.Sync.enabled())) throw new Error('left half set up');
     await B.page.click('#sync-sheet [data-sy="close"]');
   });
