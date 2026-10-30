@@ -14,7 +14,7 @@
  * Live data (weather, FX) is never cached — a stale exchange rate is worse
  * than an honest "需上網更新".
  */
-const VERSION = 'v27';
+const VERSION = 'v28';
 const SHELL = 'tripbook-shell-' + VERSION;
 const TILES = 'tripbook-tiles-' + VERSION;
 
@@ -65,7 +65,13 @@ self.addEventListener('install', (event) => {
     caches.open(SHELL)
       /* Individually, so one failed file does not abort the whole install. */
       .then((cache) => Promise.all(
-        SHELL_FILES.map((url) => cache.add(url).catch((err) => {
+        /* cache: 'reload' goes past the browser's HTTP cache. GitHub
+           Pages lets browsers keep a file for 10 minutes, so a plain add()
+           made just after a visit stored the NEW index.html beside the OLD
+           app.js: the page showed buttons its code did not know, and
+           tapping them did nothing. Every file of a version comes from the
+           server, or the version is not installed at all. */
+        SHELL_FILES.map((url) => cache.add(new Request(url, { cache: 'reload' })).catch((err) => {
           console.warn('[sw] could not precache', url, err);
         }))
       ))
@@ -132,16 +138,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  /* Same-origin app files: cache first, revalidate in the background. */
+  /* Same-origin app files: from this version's cache, as a set.
+
+     There used to be a background refresh here as well, which rewrote
+     single files in place. Between a deploy and the new worker taking
+     over, that put one version's index.html next to another version's
+     scripts. Every deploy ships a new VERSION, so a version's files never
+     change after install; the whole set is replaced at once when the next
+     worker activates. Only a file this version did not precache comes
+     from the network, and is kept for next time. */
   if (new URL(url).origin === self.location.origin) {
     event.respondWith(
       caches.open(SHELL).then((cache) =>
-        cache.match(req).then((hit) => {
-          const network = fetch(req).then((res) => {
-            if (res && res.status === 200) cache.put(req, res.clone());
+        cache.match(req, { ignoreSearch: false }).then((hit) => {
+          if (hit) return hit;
+          return fetch(req, { cache: 'no-cache' }).then((res) => {
+            if (res && res.status === 200 && req.method === 'GET') cache.put(req, res.clone());
             return res;
-          }).catch(() => hit || new Response('', { status: 504 }));
-          return hit || network;
+          }).catch(() => new Response('', { status: 504 }));
         })
       )
     );
