@@ -362,7 +362,7 @@
         /* Every list whose rows are addressed by uid. A row normalised
            without a stored uid gets a fresh random one on every read, so
            the button rendered with one uid would write to another. */
-        ['todos', 'packing', 'bookings', 'spend'].some(function (k) {
+        ['todos', 'packing', 'bookings', 'spend', 'compare'].some(function (k) {
           return Array.isArray(t[k]) && t[k].some(function (x) { return x && typeof x === 'object' && !x.uid; });
         });
     });

@@ -1029,3 +1029,54 @@ body.on-library #view-library .wrap{padding-bottom:calc(86px + env(safe-area-ins
   .arranging .hcol .hs{margin:9px 10px 0}
 }
 @media print{ .arrangebar{display:none !important} }
+
+/* ============================================================
+   HOTEL COMPARISON
+   Cards side by side on a desktop, one under another on a phone,
+   each laid out the same way so the eye can run along a row:
+   price, rating, how far it is from your plan, then the words.
+   ============================================================ */
+.hc-grid{display:grid;gap:14px;margin-top:14px;grid-template-columns:minmax(0,1fr)}
+.hc-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:15px 16px;
+  display:flex;flex-direction:column;gap:9px;min-width:0}
+.hc-card.chosen{border:2px solid var(--teal);box-shadow:0 4px 18px var(--shadow)}
+.hc-head{display:flex;gap:11px;align-items:flex-start}
+.hc-letter{flex-shrink:0;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  background:var(--amber);color:var(--on-amber);font-weight:800;font-size:.9rem}
+.hc-title{min-width:0}
+.hc-title h3{font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;color:var(--ink);line-height:1.25}
+.hc-src{font-size:.76rem;color:var(--teal);text-decoration:none;font-weight:700}
+.hc-badges{display:flex;gap:6px;flex-wrap:wrap}
+.hc-badge{font-size:.68rem;font-weight:800;border-radius:999px;padding:2px 9px}
+.hc-badge.cheap{background:var(--tint-ok);color:var(--sea)}
+.hc-badge.rated{background:var(--pill-warn-bg);color:var(--pill-warn-fg)}
+.hc-badge.near{background:var(--tint);color:var(--teal)}
+.hc-badge.picked{background:var(--wash-b);color:var(--on-wash)}
+.hc-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:2px 0}
+.hc-facts div{min-width:0}
+.hc-facts dt{font-size:.7rem;font-weight:700;color:var(--ink-soft)}
+.hc-facts dd{font-size:.95rem;font-weight:700;color:var(--sea);font-variant-numeric:tabular-nums}
+.hc-facts dd small{font-weight:400;font-size:.74rem;color:var(--ink-soft)}
+.hc-facts div:last-child{grid-column:1 / -1}
+.hc-chips{display:flex;gap:6px;flex-wrap:wrap}
+.hc-chips:empty{display:none}
+.hc-chip{font-size:.74rem;font-weight:700;border-radius:8px;padding:2px 8px}
+.hc-chip.ok{background:var(--tint-ok);color:var(--sea)}
+.hc-chip.no{background:var(--pill-bad-bg);color:var(--pill-bad-fg)}
+.hc-pros,.hc-cons{list-style:none;margin:0;padding:0;font-size:.86rem;color:var(--ink)}
+.hc-pros li,.hc-cons li{padding:2px 0 2px 20px;position:relative}
+.hc-pros li::before{content:'＋';position:absolute;left:0;color:var(--teal);font-weight:800}
+.hc-cons li::before{content:'－';position:absolute;left:0;color:var(--danger);font-weight:800}
+.hc-notes,.hc-addr{font-size:.8rem;color:var(--ink-soft)}
+.hc-acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.hc-acts .btn-primary{flex:1}
+.hc-add details summary{cursor:pointer;font-weight:700;color:var(--teal);margin-top:12px;font-size:.9rem}
+.hc-mapcard .daymap{height:340px}
+.smk span{display:block;width:12px;height:12px;border-radius:50%;background:var(--teal-soft);
+  border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.hmk span{background:var(--amber) !important;color:var(--on-amber) !important;width:30px !important;height:30px !important;
+  font-size:.85rem !important}
+.dcard.hccard .num{background:linear-gradient(150deg,var(--amber),#b5713a)}
+
+@media (min-width:700px){ .hc-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (min-width:1280px){ .hc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }

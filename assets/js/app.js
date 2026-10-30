@@ -243,6 +243,7 @@
       runSearch();
     }
     paintPhotos();
+    if (actual === 'hotels') setTimeout(drawHotelMap, 30);
 
     var day = trip.days.filter(function (d) { return d.id === actual; })[0];
     if (day) {
@@ -1265,6 +1266,13 @@
     else if (act === 'edit') { go('#/edit/' + encodeURIComponent(id || (current && current.id))); }
     else if (act === 'library') { go('#/'); }
     else if (act === 'cover') { e.preventDefault(); openCoverSheet(); }
+    else if (act === 'hotels') { go('#/trip/' + encodeURIComponent(current.id) + '/hotels'); }
+    else if (act === 'hc-prompt') { e.preventDefault(); hotelPrompt(); }
+    else if (act === 'hc-import') { e.preventDefault(); hotelImport(); }
+    else if (act === 'hc-manual') { e.preventDefault(); hotelManual(null); }
+    else if (act === 'hc-edit') { e.preventDefault(); hotelManual(btn.getAttribute('data-uid')); }
+    else if (act === 'hc-del') { e.preventDefault(); hotelDelete(btn.getAttribute('data-uid')); }
+    else if (act === 'hc-pick') { e.preventDefault(); hotelPick(btn.getAttribute('data-uid')); }
     else if (act === 'lay-start') { e.preventDefault(); startArrange(); }
     else if (act === 'lay-done') { e.preventDefault(); endArrange(); }
     else if (act === 'lay-reset') { e.preventDefault(); Layout.reset(); repaintHome(); U.toast('排返預設次序'); }
@@ -1374,7 +1382,10 @@
   }
 
   function copyPrompt() {
-    var text = global.AI_PROMPT || '';
+    copyText(global.AI_PROMPT || '', 'copy 咗，貼落 AI 度啦 ✓');
+  }
+
+  function copyText(text, okMsg) {
     if (!text) { U.toast('搵唔到提示內容', true); return; }
 
     function fallback() {
@@ -1390,17 +1401,17 @@
       var ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       document.body.removeChild(ta);
-      U.toast(ok ? 'copy 咗，貼落 AI 度啦 ✓' : 'copy 唔到，試下手動揀', !ok);
+      U.toast(ok ? okMsg : 'copy 唔到，試下手動揀', !ok);
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text)
-        .then(function () { U.toast('copy 咗，貼落 AI 度啦 ✓'); })
-        .catch(fallback);
+        .then(function () { U.toast(okMsg); }, fallback);
     } else {
       fallback();
     }
   }
+
 
   function downloadTemplate() {
     var text = global.TRIP_TEMPLATE;
@@ -1428,6 +1439,171 @@
   }
 
   /* --- boot ------------------------------------------------------ */
+
+  /* --- comparing hotels ---------------------------------------------- */
+
+  /* Save a new compare list and show the comparison again. Comparing is
+     planning, so this is an ordinary save and the trip re-renders. */
+  function saveCompare(list, keepScroll) {
+    if (!current) return false;
+    var t = Store.get(current.id);
+    if (!t) return false;
+    t.compare = list;
+    if (!Store.save(t)) return false;
+    var y = window.pageYOffset;
+    openTrip(t.id, 'hotels');
+    if (keepScroll) window.scrollTo(0, y);
+    return true;
+  }
+
+  function drawHotelMap() {
+    if (!current || !U.el('hc-map')) return;
+    Widgets.pinMap('hc-map', Hotels.mapPoints(current));
+  }
+
+  function compareRow(uid) {
+    return current && current.compare.filter(function (h) { return h.uid === uid; })[0];
+  }
+
+  function hotelPrompt() {
+    if (!current) return;
+    var links = Hotels.linksIn(U.el('hc-links').value);
+    if (!links.length) { U.toast('貼至少一條酒店連結先', true); U.el('hc-links').focus(); return; }
+    copyText(Hotels.prompt(current, links), 'copy 咗 —— 貼俾 AI，再將佢嘅回覆貼返落嚟');
+    var det = document.querySelector('#view-trip .hc-paste');
+    if (det) det.open = true;
+  }
+
+  function hotelImport() {
+    if (!current) return;
+    var err = U.el('hc-err');
+    err.hidden = true;
+    var rows;
+    try { rows = Hotels.parse(U.el('hc-reply').value); }
+    catch (e) { err.textContent = e.message; err.hidden = false; return; }
+    var before = current.compare.length;
+    var merged = Hotels.merge(current.compare, rows);
+    if (saveCompare(merged)) {
+      var added = merged.length - before;
+      U.toast(added > 0 ? '加咗 ' + added + ' 間' + (rows.length > added ? '，更新咗 ' + (rows.length - added) + ' 間' : '')
+                        : '更新咗 ' + rows.length + ' 間');
+    }
+  }
+
+  /* Links pasted without going through an AI still become rows: the
+     name is read from the link where the site puts one there. */
+  function hotelManual(uid) {
+    if (!current) return;
+    var base = uid ? compareRow(uid) : null;
+    if (!base) {
+      var links = Hotels.linksIn((U.el('hc-links') || {}).value || '');
+      if (links.length > 1) {
+        var rows = links.map(function (u) {
+          return { url: u, name: Hotels.nameFromUrl(u) || '', platform: Hotels.platformOf(u) };
+        });
+        saveCompare(Hotels.merge(current.compare, rows));
+        U.toast('加咗 ' + rows.length + ' 間，撳「✏️ 改」補返價錢同評分');
+        return;
+      }
+      if (links.length === 1) base = { url: links[0], name: Hotels.nameFromUrl(links[0]), pros: [], cons: [], ratingScale: 10 };
+    }
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML = Hotels.editSheetHTML(base);
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.hc = U.trapFocus(sheet, closeHotelSheet);
+    setTimeout(function () { var n = U.el('hc-name'); if (n) n.focus(); }, 60);
+
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-hc]') : null;
+      if (!b) { if (e.target === sheet) closeHotelSheet(); return; }
+      if (b.getAttribute('data-hc') === 'close') { closeHotelSheet(); return; }
+      var row;
+      try { row = Hotels.readSheet(base && base.uid ? base : null); }
+      catch (err) {
+        var box = U.el('hc-sheet-err'); box.textContent = err.message; box.hidden = false; return;
+      }
+      var list = current.compare.slice();
+      if (base && base.uid) list = list.map(function (h) { return h.uid === base.uid ? row : h; });
+      else list.push(row);
+      closeHotelSheet();
+      saveCompare(list, true);
+    });
+  }
+
+  function closeHotelSheet() {
+    if (releaseTrap.hc) { releaseTrap.hc(); releaseTrap.hc = null; }
+    var sheet = U.el('hc-sheet');
+    if (sheet) sheet.remove();
+  }
+
+  function hotelDelete(uid) {
+    var h = compareRow(uid);
+    if (!h || !confirm('喺比較入面刪除「' + (h.name || '呢間') + '」？')) return;
+    saveCompare(current.compare.filter(function (x) { return x.uid !== uid; }), true);
+  }
+
+  /* Choosing makes it the trip's hotel — the fixed 🏨 card, the bookings
+     list, the AI prompt — with what the comparison learned in its note. */
+  function hotelPick(uid) {
+    var h = compareRow(uid);
+    if (!h || !current) return;
+    if (Hotels.isChosen(current, h)) { U.toast('已經係呢個行程嘅酒店'); return; }
+    var t = Store.get(current.id);
+    var others = t.hotels.filter(function (x) { return x.name || x.address; });
+    if (others.length && !confirm('將「' + h.name + '」設做呢個行程嘅酒店？\n\n' +
+        '會取代現有嘅「' + others.map(function (x) { return x.name || x.address; }).join('、') + '」。')) return;
+
+    var d = function (iso) { var p = U.parseISODate(iso); return p ? (p.getDate() + '/' + (p.getMonth() + 1)) : ''; };
+    var money = function (n) { return n == null ? '' : (h.currency ? h.currency + ' ' : '') + n; };
+    t.hotels = [{
+      name: h.name,
+      address: h.address,
+      dates: t.startDate && t.endDate ? d(t.startDate) + ' in → ' + d(t.endDate) + ' out' : '',
+      note: [h.total != null ? '總價 ' + money(h.total) : (h.pricePerNight != null ? '每晚 ' + money(h.pricePerNight) : ''),
+             h.freeCancel ? '免費取消' : '', h.breakfast ? '包早餐' : '', h.platform].filter(Boolean).join(' · '),
+      cancelBy: '',
+      ref: '',
+      mapQuery: h.name + (t.place && t.place.name ? ' ' + t.title : '')
+    }];
+    if (Store.save(t)) {
+      openTrip(t.id, 'hotels');
+      U.toast('揀咗「' + h.name + '」✓  記得訂埋，再喺編輯度填訂位編號');
+    }
+  }
+
+  /* From the trips page: comparisons belong to a trip, so ask which. */
+  function openHotelPicker() {
+    var trips = Store.all();
+    if (!trips.length) { U.toast('開咗個行程先，酒店比較係跟行程走嘅', true); return; }
+    if (trips.length === 1) { go('#/trip/' + encodeURIComponent(trips[0].id) + '/hotels'); return; }
+    var wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="sheet" id="pick-sheet" aria-labelledby="pick-sheet-h"><div class="sheet-in">' +
+      '<div class="sheet-head"><h2 id="pick-sheet-h">🏨 邊個行程嘅酒店？</h2>' +
+        '<button class="iconbtn" data-pick="close" aria-label="閂">✕</button></div>' +
+      '<div class="cvopts">' + trips.map(function (t) {
+        return '<button class="btn" data-pick="' + U.esc(t.id) + '">' + U.esc(t.title || '未命名') +
+          (t.compare.length ? '（' + t.compare.length + ' 間）' : '') + '</button>';
+      }).join('') + '</div></div></div>';
+    var sheet = wrap.firstChild;
+    document.body.appendChild(sheet);
+    releaseTrap.pick = U.trapFocus(sheet, closePicker);
+    sheet.querySelector('[data-pick]:not([data-pick="close"])').focus();
+    sheet.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-pick]') : null;
+      if (!b) { if (e.target === sheet) closePicker(); return; }
+      var id = b.getAttribute('data-pick');
+      closePicker();
+      if (id !== 'close') go('#/trip/' + encodeURIComponent(id) + '/hotels');
+    });
+  }
+
+  function closePicker() {
+    if (releaseTrap.pick) { releaseTrap.pick(); releaseTrap.pick = null; }
+    var sheet = U.el('pick-sheet');
+    if (sheet) sheet.remove();
+  }
 
   /* --- arranging the home cards --------------------------------------- */
 

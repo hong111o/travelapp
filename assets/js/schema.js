@@ -24,6 +24,9 @@
  *     spend:    [{uid, at, amount, cat, note, dayId, stopUid}],
  *     bookings: [{uid, at, when, title, ref, note, mapQuery}],
  *     packing:  [{uid, text, done}],
+ *     compare:  [{uid, url, name, platform, pricePerNight, total, currency, rating,
+ *                 ratingScale, reviews, address, lat, lng, freeCancel, breakfast,
+ *                 pros:[], cons:[], notes}],   // hotels being weighed up
  *     notes
  *   }
  *
@@ -82,6 +85,7 @@
       progress: {},
       journal: {},
       bookings: [],
+      compare: [],
       packing: [],
       budget: null,
       spend: [],
@@ -266,6 +270,37 @@
         };
       }).filter(function (b) { return b.title || b.when; }),
 
+      /* Hotels being weighed up, before one is chosen. Part of the plan
+         (choosing is planning), so edits move updatedAt like any other. */
+      compare: arr(t.compare).map(function (h) {
+        h = h || {};
+        var list = function (v) {
+          return (Array.isArray(v) ? v : String(v || '').split(/\n+/))
+            .map(function (x) { return String(x == null ? '' : x).trim(); })
+            .filter(Boolean);
+        };
+        return {
+          uid: str(h.uid) || U.uid('hc'),
+          url: str(h.url),
+          name: str(h.name),
+          platform: str(h.platform),
+          pricePerNight: num(h.pricePerNight),
+          total: num(h.total),
+          currency: str(h.currency).toUpperCase().slice(0, 3),
+          rating: num(h.rating),
+          ratingScale: num(h.ratingScale) || 10,
+          reviews: num(h.reviews),
+          address: str(h.address),
+          lat: num(h.lat),
+          lng: num(h.lng),
+          freeCancel: h.freeCancel == null ? null : !!h.freeCancel,
+          breakfast: h.breakfast == null ? null : !!h.breakfast,
+          pros: list(h.pros),
+          cons: list(h.cons),
+          notes: str(h.notes)
+        };
+      }).filter(function (h) { return h.name || h.url; }),
+
       /* What to bring. Ticking one is a record, like a visited mark, so
          it does not move updatedAt. */
       packing: arr(t.packing).map(function (x) {
@@ -317,6 +352,7 @@
     out.bookings.forEach(function (b) { claim(b, 'bk'); });
     out.packing.forEach(function (x) { claim(x, 'pk'); });
     out.todos.forEach(function (x) { claim(x, 'td'); });
+    out.compare.forEach(function (x) { claim(x, 'hc'); });
     out.food.picks.forEach(function (p) { claim(p, 'p'); });
 
     /* Carry over only the ticks that still point at something. Editing a

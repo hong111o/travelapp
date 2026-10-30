@@ -278,7 +278,9 @@
      about this trip's state rather than a place to go: how much of it
      you have done, and whether anything in it looks wrong. */
   function statusCardsHTML(trip) {
-    var cards = bookingsCardHTML(trip) + checkCardHTML(trip) + checkupCardHTML(trip);
+    var cards = bookingsCardHTML(trip) +
+      (!readOnly && global.Hotels ? Hotels.statusCardHTML(trip) : '') +
+      checkCardHTML(trip) + checkupCardHTML(trip);
     return cards ? '<div class="daycards statuscards">' + cards + '</div>' : '';
   }
 
@@ -1368,6 +1370,7 @@
       foodHTML(t) +
       moneyHTML(t) +
       bookingsHTML(t) +
+      (!readOnly && global.Hotels ? Hotels.viewHTML(t) : '') +
       checklistHTML(t) +
       searchHTML(t) +
       checkupHTML(t) +
