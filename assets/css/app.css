@@ -1227,8 +1227,8 @@ body.on-library #view-passport .wrap{padding-bottom:calc(86px + env(safe-area-in
 
 /* The date column is a fixed width too: sized to its own text, it moved
    the arrows row by row. */
-.pj{display:grid;grid-template-columns:1.4em minmax(0,1fr) 1em minmax(0,1fr) 4.6em;
-  align-items:center;gap:7px;padding:10px 12px;width:100%;text-align:left;cursor:pointer;
+.pj{display:grid;grid-template-columns:1.6rem minmax(0,1fr) 1em minmax(0,1fr) 4.6em;
+  align-items:center;gap:7px;padding:10px 12px 10px 10px;width:100%;text-align:left;cursor:pointer;
   font-family:inherit;color:inherit;background:none;border:none;border-top:1px solid var(--sand-2);min-height:56px}
 .pj-list > li:first-child .pj{border-top:none}
 .pj:active,.pj:hover{background:var(--sand-2)}
@@ -1239,6 +1239,8 @@ body.on-library #view-passport .wrap{padding-bottom:calc(86px + env(safe-area-in
 .pj-place small{display:block;max-width:none;font-size:.72rem;color:var(--ink-soft);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pj-arrow{text-align:center}
+/* the mode icon keeps to its own column, clear of the place name */
+.pj .pj-mode{width:auto;font-size:1.1rem;line-height:1;margin-right:4px}
 .pj-meta{min-width:0;overflow:hidden}
 .pj-meta small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pj-meta .pj-auto{color:var(--teal);font-weight:700}

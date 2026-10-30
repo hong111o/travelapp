@@ -270,6 +270,16 @@ const pp = '#view-passport';
     if (new Set(xs).size !== 1) throw new Error('arrows at ' + [...new Set(xs)].join(', '));
   });
 
+  await t.step('the transport icon stays clear of the place name', async () => {
+    const gaps = await page.evaluate(() => [...document.querySelectorAll('#view-passport .pj')].map(r => {
+      const icon = r.querySelector('.pj-mode').getBoundingClientRect();
+      const name = r.querySelector('.pj-place b').getBoundingClientRect();
+      const range = document.createRange(); range.selectNodeContents(r.querySelector('.pj-mode'));
+      return Math.round(name.left - Math.max(icon.right, range.getBoundingClientRect().right));
+    }));
+    if (!gaps.length || Math.min(...gaps) < 6) throw new Error('gaps ' + gaps.join(','));
+  });
+
   await t.step('no airline count; legs counted instead', async () => {
     const labels = await page.locator(`${pp} .pp-stats dt`).allTextContents();
     if (labels.includes('航空公司')) throw new Error('airlines still shown');
